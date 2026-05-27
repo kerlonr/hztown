@@ -14,6 +14,13 @@ const CHANNELS = {
   focus: { label: "Focus", x: 70, y: 78 }
 };
 
+const DEFAULT_SKINS = {
+  "default:mint": "linear-gradient(135deg, #6ee7b7, #155e75)",
+  "default:blue": "linear-gradient(135deg, #93c5fd, #1d4ed8)",
+  "default:rose": "linear-gradient(135deg, #fda4af, #be123c)",
+  "default:gold": "linear-gradient(135deg, #fcd34d, #b45309)"
+};
+
 const AUDIO_OPTIONS = {
   echoCancellation: true,
   noiseSuppression: true,
@@ -39,8 +46,12 @@ const state = {
   selfId: null,
   name: "",
   color: pickColor(),
+  avatar: localStorage.getItem("gt.avatar") || "default:mint",
   channel: "team",
   users: new Map(),
+  messages: [],
+  speakingIds: new Set(),
+  chatOpen: true,
   livekitRoom: null,
   livekitRoomName: null,
   mediaElements: new Map(),
@@ -66,15 +77,24 @@ const els = {
   cameraIcon: document.querySelector("#cameraIcon"),
   screenButton: document.querySelector("#screenButton"),
   screenIcon: document.querySelector("#screenIcon"),
+  chatButton: document.querySelector("#chatButton"),
   connectionStatus: document.querySelector("#connectionStatus"),
   voiceTitle: document.querySelector("#voiceTitle"),
   voiceSubtitle: document.querySelector("#voiceSubtitle"),
   voiceTiles: document.querySelector("#voiceTiles"),
+  workspaceBody: document.querySelector(".workspace-body"),
   mediaGrid: document.querySelector("#mediaGrid"),
   floorPlan: document.querySelector("#floorPlan"),
   avatarsLayer: document.querySelector("#avatarsLayer"),
   proximityZone: document.querySelector("#proximityZone"),
   audioMount: document.querySelector("#audioMount"),
+  chatPanel: document.querySelector("#chatPanel"),
+  chatMessages: document.querySelector("#chatMessages"),
+  chatForm: document.querySelector("#chatForm"),
+  chatInput: document.querySelector("#chatInput"),
+  chatChannelLabel: document.querySelector("#chatChannelLabel"),
+  avatarInput: document.querySelector("#avatarInput"),
+  skinButtons: Array.from(document.querySelectorAll(".skin-option")),
   channelButtons: Array.from(document.querySelectorAll(".channel"))
 };
 
@@ -93,6 +113,7 @@ els.joinForm.addEventListener("submit", () => {
     spaceId: "tec-hq",
     name,
     color: state.color,
+    avatar: state.avatar,
     x: CHANNELS.team.x,
     y: CHANNELS.team.y,
     channel: state.channel
@@ -118,6 +139,43 @@ els.cameraButton.addEventListener("click", () => {
 
 els.screenButton.addEventListener("click", () => {
   toggleScreenShare();
+});
+
+els.chatButton.addEventListener("click", () => {
+  state.chatOpen = !state.chatOpen;
+  syncChatPanel();
+});
+
+els.chatForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const text = els.chatInput.value.trim();
+  if (!text || !state.selfId) return;
+
+  socket.emit("chat:send", {
+    channel: state.channel,
+    text
+  });
+  els.chatInput.value = "";
+});
+
+els.skinButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    setAvatar(button.dataset.avatar || "default:mint");
+  });
+});
+
+els.avatarInput.addEventListener("change", async () => {
+  const file = els.avatarInput.files?.[0];
+  if (!file) return;
+
+  try {
+    const avatar = await fileToAvatarDataUrl(file);
+    setAvatar(avatar);
+  } catch (error) {
+    alert(error.message || "Nao foi possivel usar essa imagem.");
+  } finally {
+    els.avatarInput.value = "";
+  }
 });
 
 els.channelButtons.forEach((button) => {
@@ -159,9 +217,10 @@ els.floorPlan.addEventListener("pointerdown", (event) => {
   els.floorPlan.focus();
 });
 
-socket.on("space:ready", ({ selfId, users }) => {
+socket.on("space:ready", ({ selfId, users, messages = [] }) => {
   state.selfId = selfId;
   state.users = new Map(users.map((user) => [user.id, user]));
+  state.messages = messages;
   syncSelfPanel();
   render();
 });
@@ -191,6 +250,14 @@ socket.on("presence:left", (id) => {
   state.users.delete(id);
   removeParticipantMedia(id);
   render();
+});
+
+socket.on("chat:message", (message) => {
+  state.messages.push(message);
+  if (state.messages.length > 120) {
+    state.messages.splice(0, state.messages.length - 120);
+  }
+  renderChat(true);
 });
 
 async function joinVoice() {
@@ -387,6 +454,8 @@ async function disconnectLiveKitRoom({ resetControls = true } = {}) {
   }
 
   clearMediaElements();
+  state.speakingIds.clear();
+  syncSpeakingIndicators();
 
   if (resetControls) {
     state.muted = false;
@@ -426,8 +495,14 @@ function bindLiveKitRoom(room) {
     .on(RoomEvent.TrackUnmuted, () => {
       renderMediaLabels();
     })
+    .on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+      state.speakingIds = new Set(speakers.map((participant) => participant.identity));
+      syncSpeakingIndicators();
+    })
     .on(RoomEvent.ParticipantDisconnected, (participant) => {
       removeParticipantMedia(participant.identity);
+      state.speakingIds.delete(participant.identity);
+      syncSpeakingIndicators();
     })
     .on(RoomEvent.Reconnecting, () => {
       setConnectionStatus("Reconectando LiveKit...");
@@ -443,6 +518,7 @@ function bindLiveKitRoom(room) {
       state.cameraOn = false;
       state.screenOn = false;
       state.muted = false;
+      state.speakingIds.clear();
       clearMediaElements();
       socket.emit("presence:update", { inVoice: false, muted: false });
       syncSelfPanel();
@@ -676,6 +752,7 @@ function render() {
   renderOnlineList();
   renderVoiceStrip();
   renderMap();
+  renderChat();
   syncSelfPanel();
 }
 
@@ -689,6 +766,7 @@ function renderChannels() {
   els.voiceSubtitle.textContent = state.livekitRoom
     ? "Audio, camera e tela estao trafegando pelo LiveKit."
     : "Entre para conversar com quem estiver no mesmo canal.";
+  els.chatChannelLabel.textContent = channel?.label || "Canal";
 }
 
 function renderOnlineList() {
@@ -696,11 +774,18 @@ function renderOnlineList() {
   for (const user of state.users.values()) {
     const row = document.createElement("div");
     row.className = "online-row";
-    row.innerHTML = `
-      <div class="avatar" style="background:${user.color}">${initials(user.name)}</div>
-      <strong>${escapeHtml(user.name)}</strong>
-      <span class="voice-dot ${user.inVoice ? "active" : ""}"></span>
-    `;
+    const avatar = document.createElement("div");
+    avatar.className = "avatar";
+    avatar.dataset.identity = user.id;
+    applyAvatar(avatar, user);
+
+    const name = document.createElement("strong");
+    name.textContent = user.name;
+
+    const voiceDot = document.createElement("span");
+    voiceDot.className = `voice-dot ${user.inVoice ? "active" : ""}`;
+
+    row.append(avatar, name, voiceDot);
     els.onlineList.append(row);
   }
 }
@@ -721,10 +806,15 @@ function renderVoiceStrip() {
   for (const user of users) {
     const tile = document.createElement("div");
     tile.className = "voice-tile";
-    tile.innerHTML = `
-      <div class="avatar" style="background:${user.color}">${initials(user.name)}</div>
-      <span>${escapeHtml(user.name)}${user.muted ? " - mutado" : ""}</span>
-    `;
+    const avatar = document.createElement("div");
+    avatar.className = "avatar";
+    avatar.dataset.identity = user.id;
+    applyAvatar(avatar, user);
+
+    const label = document.createElement("span");
+    label.textContent = `${user.name}${user.muted ? " - mutado" : ""}`;
+
+    tile.append(avatar, label);
     els.voiceTiles.append(tile);
   }
 }
@@ -734,11 +824,11 @@ function renderMap() {
   for (const user of state.users.values()) {
     const avatar = document.createElement("div");
     avatar.className = `map-avatar ${user.id === state.selfId ? "self" : ""}`;
+    avatar.dataset.identity = user.id;
     avatar.dataset.name = user.id === state.selfId ? `Voce, ${user.name}` : user.name;
     avatar.style.left = `${user.x}%`;
     avatar.style.top = `${user.y}%`;
-    avatar.style.background = user.color;
-    avatar.textContent = initials(user.name);
+    applyAvatar(avatar, user);
     els.avatarsLayer.append(avatar);
   }
 
@@ -752,8 +842,10 @@ function renderMap() {
 function syncSelfPanel() {
   const name = state.name || "Convidado";
   els.selfName.textContent = name;
-  els.selfAvatar.textContent = initials(name);
-  els.selfAvatar.style.background = state.color;
+  if (state.selfId) {
+    els.selfAvatar.dataset.identity = state.selfId;
+  }
+  applyAvatar(els.selfAvatar, { name, color: state.color, avatar: state.avatar });
   els.selfStatus.textContent = state.livekitRoom
     ? state.muted
       ? "em chamada, mutado"
@@ -766,11 +858,148 @@ function syncSelfPanel() {
   els.muteButton.disabled = state.busy || !state.livekitRoom;
   els.cameraButton.disabled = state.busy || !state.selfId;
   els.screenButton.disabled = state.busy || !state.selfId;
-  els.muteIcon.textContent = state.muted ? "off" : "mic";
-  els.cameraIcon.textContent = state.cameraOn ? "cam off" : "cam";
-  els.screenIcon.textContent = state.screenOn ? "stop" : "tela";
+  els.muteIcon.textContent = state.muted ? "Off" : "Mic";
+  els.cameraIcon.textContent = state.cameraOn ? "Off" : "Cam";
+  els.screenIcon.textContent = state.screenOn ? "Stop" : "Tela";
+  els.muteButton.classList.toggle("active", state.livekitRoom && !state.muted);
   els.cameraButton.classList.toggle("active", state.cameraOn);
   els.screenButton.classList.toggle("active", state.screenOn);
+  syncSkinPicker();
+  syncChatPanel();
+  syncSpeakingIndicators();
+}
+
+function renderChat(forceScroll = false) {
+  const messages = state.messages.filter((message) => message.channel === state.channel);
+  const shouldStick =
+    forceScroll ||
+    els.chatMessages.scrollTop + els.chatMessages.clientHeight >= els.chatMessages.scrollHeight - 48;
+
+  els.chatMessages.innerHTML = "";
+
+  if (messages.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "chat-empty";
+    empty.textContent = "Sem mensagens neste canal.";
+    els.chatMessages.append(empty);
+    return;
+  }
+
+  for (const message of messages) {
+    const row = document.createElement("article");
+    row.className = "chat-message";
+
+    const avatar = document.createElement("div");
+    avatar.className = "avatar";
+    applyAvatar(avatar, message);
+
+    const body = document.createElement("div");
+    const meta = document.createElement("div");
+    meta.className = "chat-meta";
+
+    const name = document.createElement("strong");
+    name.textContent = message.userId === state.selfId ? `${message.name} (voce)` : message.name;
+
+    const time = document.createElement("time");
+    time.dateTime = new Date(message.createdAt).toISOString();
+    time.textContent = new Date(message.createdAt).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+
+    const text = document.createElement("p");
+    text.textContent = message.text;
+
+    meta.append(name, time);
+    body.append(meta, text);
+    row.append(avatar, body);
+    els.chatMessages.append(row);
+  }
+
+  if (shouldStick) {
+    els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+  }
+}
+
+function syncChatPanel() {
+  els.workspaceBody.classList.toggle("chat-closed", !state.chatOpen);
+  els.chatPanel.classList.toggle("closed", !state.chatOpen);
+  els.chatButton.classList.toggle("active", state.chatOpen);
+}
+
+function syncSpeakingIndicators() {
+  document.querySelectorAll(".avatar[data-identity], .map-avatar[data-identity]").forEach((avatar) => {
+    avatar.classList.toggle("speaking", state.speakingIds.has(avatar.dataset.identity));
+  });
+}
+
+function setAvatar(avatar) {
+  state.avatar = avatar;
+  localStorage.setItem("gt.avatar", avatar);
+  syncSelfPanel();
+
+  if (state.selfId) {
+    socket.emit("presence:update", { avatar });
+  }
+}
+
+function syncSkinPicker() {
+  els.skinButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.avatar === state.avatar);
+  });
+}
+
+function applyAvatar(element, user) {
+  const avatar = user.avatar || "";
+  element.style.background = "";
+  element.style.backgroundColor = user.color || state.color;
+  element.style.backgroundImage = "";
+  element.style.backgroundSize = "";
+  element.style.backgroundPosition = "";
+  element.textContent = initials(user.name || "G");
+
+  if (DEFAULT_SKINS[avatar]) {
+    element.style.backgroundImage = DEFAULT_SKINS[avatar];
+    return;
+  }
+
+  if (avatar.startsWith("data:image/")) {
+    element.style.backgroundImage = `url("${avatar}")`;
+    element.style.backgroundSize = "cover";
+    element.style.backgroundPosition = "center";
+    element.textContent = "";
+  }
+}
+
+function fileToAvatarDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("Escolha uma imagem PNG, JPG ou WEBP."));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Nao foi possivel ler a imagem."));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("Nao foi possivel processar a imagem."));
+      image.onload = () => {
+        const size = 160;
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        const sourceSize = Math.min(image.width, image.height);
+        const sourceX = (image.width - sourceSize) / 2;
+        const sourceY = (image.height - sourceSize) / 2;
+
+        canvas.width = size;
+        canvas.height = size;
+        context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
+        resolve(canvas.toDataURL("image/webp", 0.82));
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function pickColor() {

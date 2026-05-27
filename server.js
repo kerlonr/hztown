@@ -18,6 +18,7 @@ const LIVEKIT_URL = process.env.LIVEKIT_URL;
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
 const spaces = new Map();
+const spaceMessages = new Map();
 
 app.use(express.static(path.join(__dirname, "public")));
 app.use(
@@ -70,6 +71,13 @@ function getSpace(spaceId) {
   return spaces.get(spaceId);
 }
 
+function getSpaceMessages(spaceId) {
+  if (!spaceMessages.has(spaceId)) {
+    spaceMessages.set(spaceId, []);
+  }
+  return spaceMessages.get(spaceId);
+}
+
 function sanitizeLiveKitId(value, fallback) {
   const text = String(value || fallback)
     .trim()
@@ -78,11 +86,23 @@ function sanitizeLiveKitId(value, fallback) {
   return text || fallback;
 }
 
+function sanitizeAvatar(value) {
+  const avatar = String(value || "").trim();
+  if (avatar.startsWith("default:")) {
+    return avatar.slice(0, 48);
+  }
+  if (/^data:image\/(png|jpeg|jpg|webp);base64,[a-zA-Z0-9+/=]+$/.test(avatar)) {
+    return avatar.slice(0, 180000);
+  }
+  return "";
+}
+
 function publicUser(user) {
   return {
     id: user.id,
     name: user.name,
     color: user.color,
+    avatar: user.avatar,
     x: user.x,
     y: user.y,
     channel: user.channel,
@@ -101,6 +121,7 @@ io.on("connection", (socket) => {
       id: socket.id,
       name: profile.name?.trim()?.slice(0, 28) || "Convidado",
       color: profile.color || "#7c5cff",
+      avatar: sanitizeAvatar(profile.avatar),
       x: Number.isFinite(profile.x) ? profile.x : 42,
       y: Number.isFinite(profile.y) ? profile.y : 50,
       channel: profile.channel || "team",
@@ -112,7 +133,8 @@ io.on("connection", (socket) => {
     socket.join(currentSpaceId);
     socket.emit("space:ready", {
       selfId: socket.id,
-      users: Array.from(space.values()).map(publicUser)
+      users: Array.from(space.values()).map(publicUser),
+      messages: getSpaceMessages(currentSpaceId)
     });
     socket.to(currentSpaceId).emit("presence:joined", publicUser(user));
   });
@@ -129,9 +151,41 @@ io.on("connection", (socket) => {
     if (typeof patch.channel === "string") user.channel = patch.channel.slice(0, 32);
     if (typeof patch.inVoice === "boolean") user.inVoice = patch.inVoice;
     if (typeof patch.muted === "boolean") user.muted = patch.muted;
+    if (typeof patch.avatar === "string") user.avatar = sanitizeAvatar(patch.avatar);
 
     socket.to(currentSpaceId).emit("presence:updated", publicUser(user));
     socket.emit("presence:self", publicUser(user));
+  });
+
+  socket.on("chat:send", (payload) => {
+    if (!currentSpaceId) return;
+
+    const space = getSpace(currentSpaceId);
+    const user = space.get(socket.id);
+    if (!user) return;
+
+    const text = String(payload?.text || "").trim().slice(0, 800);
+    const channel = String(payload?.channel || user.channel || "team").slice(0, 32);
+    if (!text) return;
+
+    const message = {
+      id: randomUUID(),
+      userId: socket.id,
+      name: user.name,
+      color: user.color,
+      avatar: user.avatar,
+      channel,
+      text,
+      createdAt: Date.now()
+    };
+
+    const messages = getSpaceMessages(currentSpaceId);
+    messages.push(message);
+    if (messages.length > 120) {
+      messages.splice(0, messages.length - 120);
+    }
+
+    io.to(currentSpaceId).emit("chat:message", message);
   });
 
   socket.on("rtc:offer", ({ to, description }) => {
@@ -156,6 +210,7 @@ io.on("connection", (socket) => {
 
     if (space.size === 0) {
       spaces.delete(currentSpaceId);
+      spaceMessages.delete(currentSpaceId);
     }
 
     if (user) {

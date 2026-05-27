@@ -65,14 +65,21 @@
             <h1>Tec HQ</h1>
           </div>
           <div class="topbar-actions">
-            <button id="muteButton" class="icon-button" title="Mutar microfone" disabled>
-              <span id="muteIcon">mic</span>
+            <button id="muteButton" class="tool-button" title="Mutar microfone" disabled>
+              <span id="muteIcon" class="tool-icon">Mic</span>
+              <span>Microfone</span>
             </button>
-            <button id="cameraButton" class="icon-button" title="Abrir camera" disabled>
-              <span id="cameraIcon">cam</span>
+            <button id="cameraButton" class="tool-button" title="Abrir camera" disabled>
+              <span id="cameraIcon" class="tool-icon">Cam</span>
+              <span>Camera</span>
             </button>
-            <button id="screenButton" class="icon-button" title="Transmitir tela" disabled>
-              <span id="screenIcon">tela</span>
+            <button id="screenButton" class="tool-button" title="Transmitir tela" disabled>
+              <span id="screenIcon" class="tool-icon">Tela</span>
+              <span>Tela</span>
+            </button>
+            <button id="chatButton" class="tool-button active" title="Abrir chat" type="button">
+              <span class="tool-icon">Chat</span>
+              <span>Chat</span>
             </button>
             <button id="voiceButton" class="primary-button">Entrar na voz</button>
           </div>
@@ -87,35 +94,53 @@
           <div id="voiceTiles" class="voice-tiles"></div>
         </section>
 
-        <section class="media-dock" aria-label="Video e compartilhamento">
-          <div id="mediaGrid" class="media-grid empty">
-            <div class="media-empty">
-              <strong>Sem video ativo</strong>
-              <small>Abra a camera ou compartilhe a tela para aparecer aqui.</small>
-            </div>
-          </div>
-        </section>
+        <section class="workspace-body">
+          <div class="main-stage">
+            <section class="media-dock" aria-label="Video e compartilhamento">
+              <div id="mediaGrid" class="media-grid empty">
+                <div class="media-empty">
+                  <strong>Sem video ativo</strong>
+                  <small>Abra a camera ou compartilhe a tela para aparecer aqui.</small>
+                </div>
+              </div>
+            </section>
 
-        <section class="floor-wrapper">
-          <div class="floor-plan" id="floorPlan" tabindex="0" aria-label="Planta baixa interativa">
-            <div class="room room-team" data-channel="team">
-              <span>Team</span>
-            </div>
-            <div class="room room-daily" data-channel="daily">
-              <span>Daily</span>
-            </div>
-            <div class="room room-focus" data-channel="focus">
-              <span>Focus</span>
-            </div>
-            <div class="room room-lounge">
-              <span>Lounge</span>
-            </div>
-            <div class="desk desk-a"></div>
-            <div class="desk desk-b"></div>
-            <div class="desk desk-c"></div>
-            <div class="proximity-zone" id="proximityZone"></div>
-            <div id="avatarsLayer" class="avatars-layer"></div>
+            <section class="floor-wrapper">
+              <div class="floor-plan" id="floorPlan" tabindex="0" aria-label="Planta baixa interativa">
+                <div class="room room-team" data-channel="team">
+                  <span>Team</span>
+                </div>
+                <div class="room room-daily" data-channel="daily">
+                  <span>Daily</span>
+                </div>
+                <div class="room room-focus" data-channel="focus">
+                  <span>Focus</span>
+                </div>
+                <div class="room room-lounge">
+                  <span>Lounge</span>
+                </div>
+                <div class="desk desk-a"></div>
+                <div class="desk desk-b"></div>
+                <div class="desk desk-c"></div>
+                <div class="proximity-zone" id="proximityZone"></div>
+                <div id="avatarsLayer" class="avatars-layer"></div>
+              </div>
+            </section>
           </div>
+
+          <aside id="chatPanel" class="chat-panel" aria-label="Chat de texto">
+            <header class="chat-header">
+              <div>
+                <strong>Chat</strong>
+                <small id="chatChannelLabel">Team</small>
+              </div>
+            </header>
+            <div id="chatMessages" class="chat-messages"></div>
+            <form id="chatForm" class="chat-form">
+              <input id="chatInput" maxlength="800" autocomplete="off" placeholder="Mensagem" />
+              <button class="primary-button" type="submit">Enviar</button>
+            </form>
+          </aside>
         </section>
       </section>
     </main>
@@ -128,6 +153,19 @@
           Seu nome
           <input id="nameInput" name="name" maxlength="28" autocomplete="name" placeholder="Ex.: Renan" required />
         </label>
+        <div class="skin-field">
+          <span>Skin</span>
+          <div class="skin-picker" id="skinPicker">
+            <button class="skin-option active" type="button" data-avatar="default:mint" title="Skin mint"></button>
+            <button class="skin-option" type="button" data-avatar="default:blue" title="Skin blue"></button>
+            <button class="skin-option" type="button" data-avatar="default:rose" title="Skin rose"></button>
+            <button class="skin-option" type="button" data-avatar="default:gold" title="Skin gold"></button>
+          </div>
+          <label class="upload-button">
+            Usar imagem
+            <input id="avatarInput" type="file" accept="image/png,image/jpeg,image/webp" />
+          </label>
+        </div>
         <button class="primary-button" value="confirm">Entrar no espaco</button>
       </form>
     </dialog>

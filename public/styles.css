@@ -23,9 +23,15 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
   background: var(--bg);
   color: var(--text);
 }
@@ -42,7 +48,9 @@ button {
 .app-shell {
   display: grid;
   grid-template-columns: 72px 288px minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .rail {
@@ -80,6 +88,7 @@ button {
 
 .sidebar {
   display: flex;
+  min-height: 0;
   min-width: 0;
   flex-direction: column;
   background: var(--panel);
@@ -111,6 +120,7 @@ small,
 .nav-section.grow {
   flex: 1;
   min-height: 160px;
+  overflow: hidden;
 }
 
 .section-title {
@@ -166,6 +176,10 @@ small,
 .online-list {
   display: grid;
   gap: 6px;
+  max-height: 100%;
+  overflow: auto;
+  padding-right: 4px;
+  scrollbar-color: var(--line) transparent;
 }
 
 .online-row {
@@ -208,6 +222,16 @@ small,
   border-radius: 50%;
   color: #111318;
   font-weight: 900;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+}
+
+.avatar.speaking {
+  border-color: #22c55e;
+  box-shadow:
+    0 0 0 4px rgba(34, 197, 94, 0.2),
+    0 0 18px rgba(34, 197, 94, 0.42);
 }
 
 .user-panel {
@@ -231,12 +255,14 @@ small,
 
 .workspace {
   display: grid;
-  grid-template-rows: auto auto minmax(168px, 27vh) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
   min-width: 0;
   background:
-    linear-gradient(150deg, rgba(147, 197, 253, 0.11), transparent 28rem),
-    radial-gradient(circle at top right, rgba(110, 231, 183, 0.11), transparent 32rem),
+    linear-gradient(150deg, rgba(147, 197, 253, 0.1), transparent 28rem),
+    linear-gradient(40deg, transparent, rgba(110, 231, 183, 0.07)),
     #10141a;
+  overflow: hidden;
 }
 
 .topbar,
@@ -271,7 +297,7 @@ small,
 }
 
 .primary-button,
-.icon-button {
+.tool-button {
   height: 42px;
   border: 0;
   border-radius: 8px;
@@ -289,28 +315,56 @@ small,
   color: #2b0707;
 }
 
-.icon-button {
+.tool-button {
   display: grid;
-  min-width: 42px;
-  padding: 0 10px;
-  place-items: center;
+  min-width: 96px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 6px;
   background: var(--panel-2);
   color: var(--text);
+  text-align: left;
 }
 
-.icon-button.active {
+.tool-icon {
+  display: grid;
+  min-width: 32px;
+  height: 30px;
+  place-items: center;
+  border-radius: 7px;
+  background: #11151c;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.tool-button > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-button.active {
   background: rgba(147, 197, 253, 0.18);
   color: var(--blue);
   box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.34);
 }
 
-.icon-button:disabled {
+.tool-button.active .tool-icon {
+  color: var(--blue);
+}
+
+.tool-button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
 
 .voice-strip {
   background: rgba(25, 28, 35, 0.74);
+  min-height: 82px;
 }
 
 .voice-strip > div:first-child {
@@ -349,13 +403,14 @@ small,
 
 .media-dock {
   min-width: 0;
-  padding: 16px 24px 0;
+  min-height: 0;
+  padding: 16px 18px 0;
 }
 
 .media-grid {
   display: grid;
   height: 100%;
-  min-height: 152px;
+  min-height: 128px;
   grid-auto-flow: column;
   grid-auto-columns: minmax(220px, 1fr);
   gap: 12px;
@@ -372,7 +427,7 @@ small,
 
 .media-empty {
   display: grid;
-  min-height: 144px;
+  min-height: 120px;
   place-items: center;
   align-content: center;
   gap: 4px;
@@ -407,7 +462,7 @@ small,
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 152px;
+  min-height: 128px;
   object-fit: cover;
   background: #070a0f;
 }
@@ -459,12 +514,14 @@ small,
   display: grid;
   min-height: 0;
   place-items: center;
-  padding: 20px 28px 28px;
+  padding: 16px 18px 18px;
+  overflow: hidden;
 }
 
 .floor-plan {
   position: relative;
-  width: min(100%, 900px);
+  width: min(100%, 920px);
+  max-height: 100%;
   aspect-ratio: 16 / 10;
   overflow: hidden;
   border: 1px solid #384252;
@@ -587,11 +644,21 @@ small,
   font-weight: 900;
   transform: translate(-50%, -50%);
   transition: left 120ms ease, top 120ms ease;
+  background-size: cover;
+  background-position: center;
 }
 
 .map-avatar.self {
   border-color: var(--accent);
   box-shadow: 0 0 0 8px rgba(110, 231, 183, 0.12);
+}
+
+.map-avatar.speaking,
+.map-avatar.self.speaking {
+  border-color: #22c55e;
+  box-shadow:
+    0 0 0 8px rgba(34, 197, 94, 0.2),
+    0 0 26px rgba(34, 197, 94, 0.48);
 }
 
 .map-avatar::after {
@@ -657,6 +724,185 @@ small,
   border-color: var(--accent);
 }
 
+.workspace-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.workspace-body.chat-closed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.main-stage {
+  display: grid;
+  grid-template-rows: minmax(132px, 25vh) minmax(0, 1fr);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.chat-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  min-width: 0;
+  border-left: 1px solid #252b35;
+  background: rgba(20, 23, 29, 0.96);
+}
+
+.chat-panel.closed {
+  display: none;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 62px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #252b35;
+}
+
+.chat-header div {
+  display: grid;
+  gap: 2px;
+}
+
+.chat-messages {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
+  scrollbar-color: var(--line) transparent;
+}
+
+.chat-empty {
+  display: grid;
+  min-height: 140px;
+  place-items: center;
+  color: var(--muted);
+  text-align: center;
+}
+
+.chat-message {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.chat-message p {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: #dce5ef;
+  line-height: 1.38;
+}
+
+.chat-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.chat-meta strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-meta time {
+  flex: none;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.chat-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid #252b35;
+}
+
+.chat-form input {
+  min-width: 0;
+  height: 42px;
+  border: 1px solid #3a4352;
+  border-radius: 8px;
+  background: #10141a;
+  color: var(--text);
+  padding: 0 12px;
+  outline: none;
+}
+
+.chat-form input:focus {
+  border-color: var(--accent);
+}
+
+.skin-field {
+  display: grid;
+  gap: 10px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.skin-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 44px);
+  gap: 10px;
+}
+
+.skin-option {
+  width: 44px;
+  height: 44px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+}
+
+.skin-option[data-avatar="default:mint"] {
+  background: linear-gradient(135deg, #6ee7b7, #155e75);
+}
+
+.skin-option[data-avatar="default:blue"] {
+  background: linear-gradient(135deg, #93c5fd, #1d4ed8);
+}
+
+.skin-option[data-avatar="default:rose"] {
+  background: linear-gradient(135deg, #fda4af, #be123c);
+}
+
+.skin-option[data-avatar="default:gold"] {
+  background: linear-gradient(135deg, #fcd34d, #b45309);
+}
+
+.skin-option.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(110, 231, 183, 0.12);
+}
+
+.upload-button {
+  display: grid;
+  height: 42px;
+  place-items: center;
+  border: 1px solid #3a4352;
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.upload-button input {
+  display: none;
+}
+
 @media (max-width: 860px) {
   .app-shell {
     grid-template-columns: 64px minmax(0, 1fr);
@@ -680,8 +926,8 @@ small,
     flex: 1;
   }
 
-  .icon-button {
-    flex: 1;
+  .tool-button {
+    flex: 1 1 132px;
   }
 
   .voice-tiles {
@@ -707,5 +953,19 @@ small,
   .map-avatar {
     width: 38px;
     height: 38px;
+  }
+
+  .workspace-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .main-stage {
+    grid-template-rows: minmax(118px, 22vh) minmax(0, 1fr);
+  }
+
+  .chat-panel {
+    border-top: 1px solid #252b35;
+    border-left: 0;
+    max-height: 38dvh;
   }
 }
