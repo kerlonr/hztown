@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Projeto GT</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="rail" aria-label="Espacos">
+        <button class="workspace-mark active" title="Tec HQ">GT</button>
+        <button class="workspace-dot" title="Adicionar espaco">+</button>
+      </aside>
+
+      <aside class="sidebar" aria-label="Navegacao">
+        <div class="brand">
+          <span>Projeto GT</span>
+          <small>Tec HQ</small>
+        </div>
+
+        <section class="nav-section">
+          <p class="section-title">Canais de voz</p>
+          <button class="channel active" data-channel="team">
+            <span class="channel-icon">#</span>
+            <span>
+              Team
+              <small>Mesa principal</small>
+            </span>
+          </button>
+          <button class="channel" data-channel="daily">
+            <span class="channel-icon">#</span>
+            <span>
+              Daily
+              <small>Reunioes rapidas</small>
+            </span>
+          </button>
+          <button class="channel" data-channel="focus">
+            <span class="channel-icon">#</span>
+            <span>
+              Focus
+              <small>Trabalho profundo</small>
+            </span>
+          </button>
+        </section>
+
+        <section class="nav-section grow">
+          <p class="section-title">Online</p>
+          <div id="onlineList" class="online-list"></div>
+        </section>
+
+        <div class="user-panel">
+          <div id="selfAvatar" class="avatar">G</div>
+          <div>
+            <strong id="selfName">Convidado</strong>
+            <small id="selfStatus">fora da chamada</small>
+          </div>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Comunicacao centralizada</p>
+            <h1>Tec HQ</h1>
+          </div>
+          <div class="topbar-actions">
+            <button id="muteButton" class="icon-button" title="Mutar microfone" disabled>
+              <span id="muteIcon">mic</span>
+            </button>
+            <button id="voiceButton" class="primary-button">Entrar na voz</button>
+          </div>
+        </header>
+
+        <section class="voice-strip" aria-label="Participantes da chamada">
+          <div>
+            <strong id="voiceTitle">Team</strong>
+            <small id="voiceSubtitle">Entre para conversar com quem estiver no mesmo canal.</small>
+          </div>
+          <div id="voiceTiles" class="voice-tiles"></div>
+        </section>
+
+        <section class="floor-wrapper">
+          <div class="floor-plan" id="floorPlan" tabindex="0" aria-label="Planta baixa interativa">
+            <div class="room room-team" data-channel="team">
+              <span>Team</span>
+            </div>
+            <div class="room room-daily" data-channel="daily">
+              <span>Daily</span>
+            </div>
+            <div class="room room-focus" data-channel="focus">
+              <span>Focus</span>
+            </div>
+            <div class="room room-lounge">
+              <span>Lounge</span>
+            </div>
+            <div class="desk desk-a"></div>
+            <div class="desk desk-b"></div>
+            <div class="desk desk-c"></div>
+            <div class="proximity-zone" id="proximityZone"></div>
+            <div id="avatarsLayer" class="avatars-layer"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="joinDialog" class="join-dialog">
+      <form method="dialog" id="joinForm">
+        <p class="eyebrow">Projeto ousado, nome fake</p>
+        <h2>Entrar na Tec HQ</h2>
+        <label>
+          Seu nome
+          <input id="nameInput" name="name" maxlength="28" autocomplete="name" placeholder="Ex.: Renan" required />
+        </label>
+        <button class="primary-button" value="confirm">Entrar no espaco</button>
+      </form>
+    </dialog>
+
+    <div id="audioMount" aria-hidden="true"></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
