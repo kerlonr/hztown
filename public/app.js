@@ -1,3 +1,11 @@
+import {
+  Room,
+  RoomEvent,
+  ScreenSharePresets,
+  Track,
+  VideoPresets
+} from "/vendor/livekit-client/livekit-client.esm.mjs";
+
 const socket = io();
 
 const CHANNELS = {
@@ -6,16 +14,41 @@ const CHANNELS = {
   focus: { label: "Focus", x: 70, y: 78 }
 };
 
+const AUDIO_OPTIONS = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true
+};
+
+const CAMERA_OPTIONS = {
+  resolution: VideoPresets.h540.resolution,
+  frameRate: 24
+};
+
+const SCREEN_OPTIONS = {
+  audio: true,
+  video: true,
+  resolution: ScreenSharePresets.h1080fps15.resolution,
+  contentHint: "detail",
+  selfBrowserSurface: "exclude",
+  surfaceSwitching: "include",
+  systemAudio: "include"
+};
+
 const state = {
   selfId: null,
   name: "",
   color: pickColor(),
   channel: "team",
   users: new Map(),
-  localStream: null,
-  peers: new Map(),
+  livekitRoom: null,
+  livekitRoomName: null,
+  mediaElements: new Map(),
   muted: false,
-  joined: false
+  cameraOn: false,
+  screenOn: false,
+  joined: false,
+  busy: false
 };
 
 const els = {
@@ -29,18 +62,20 @@ const els = {
   voiceButton: document.querySelector("#voiceButton"),
   muteButton: document.querySelector("#muteButton"),
   muteIcon: document.querySelector("#muteIcon"),
+  cameraButton: document.querySelector("#cameraButton"),
+  cameraIcon: document.querySelector("#cameraIcon"),
+  screenButton: document.querySelector("#screenButton"),
+  screenIcon: document.querySelector("#screenIcon"),
+  connectionStatus: document.querySelector("#connectionStatus"),
   voiceTitle: document.querySelector("#voiceTitle"),
   voiceSubtitle: document.querySelector("#voiceSubtitle"),
   voiceTiles: document.querySelector("#voiceTiles"),
+  mediaGrid: document.querySelector("#mediaGrid"),
   floorPlan: document.querySelector("#floorPlan"),
   avatarsLayer: document.querySelector("#avatarsLayer"),
   proximityZone: document.querySelector("#proximityZone"),
   audioMount: document.querySelector("#audioMount"),
   channelButtons: Array.from(document.querySelectorAll(".channel"))
-};
-
-const rtcConfig = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 };
 
 if (typeof els.joinDialog.showModal === "function") {
@@ -66,7 +101,7 @@ els.joinForm.addEventListener("submit", () => {
 });
 
 els.voiceButton.addEventListener("click", () => {
-  if (state.localStream) {
+  if (state.livekitRoom) {
     leaveVoice();
   } else {
     joinVoice();
@@ -74,15 +109,15 @@ els.voiceButton.addEventListener("click", () => {
 });
 
 els.muteButton.addEventListener("click", () => {
-  if (!state.localStream) return;
+  toggleMute();
+});
 
-  state.muted = !state.muted;
-  state.localStream.getAudioTracks().forEach((track) => {
-    track.enabled = !state.muted;
-  });
-  socket.emit("presence:update", { muted: state.muted });
-  syncSelfPanel();
-  render();
+els.cameraButton.addEventListener("click", () => {
+  toggleCamera();
+});
+
+els.screenButton.addEventListener("click", () => {
+  toggleScreenShare();
 });
 
 els.channelButtons.forEach((button) => {
@@ -139,80 +174,461 @@ socket.on("presence:joined", (user) => {
 socket.on("presence:updated", (user) => {
   state.users.set(user.id, user);
   render();
-  reconcileVoicePeers();
 });
 
 socket.on("presence:self", (user) => {
+  const previousChannel = state.channel;
   state.users.set(user.id, user);
   state.channel = user.channel;
   render();
-  reconcileVoicePeers(true);
+
+  if (state.livekitRoom && previousChannel !== state.channel) {
+    switchLiveKitRoom();
+  }
 });
 
 socket.on("presence:left", (id) => {
   state.users.delete(id);
-  closePeer(id);
+  removeParticipantMedia(id);
   render();
-});
-
-socket.on("rtc:offer", async ({ from, description }) => {
-  if (!state.localStream || !isSameVoiceChannel(from)) return;
-
-  const peer = createPeer(from);
-  await peer.pc.setRemoteDescription(description);
-  const answer = await peer.pc.createAnswer();
-  await peer.pc.setLocalDescription(answer);
-  socket.emit("rtc:answer", { to: from, description: peer.pc.localDescription });
-});
-
-socket.on("rtc:answer", async ({ from, description }) => {
-  const peer = state.peers.get(from);
-  if (!peer) return;
-  await peer.pc.setRemoteDescription(description);
-});
-
-socket.on("rtc:ice-candidate", async ({ from, candidate }) => {
-  const peer = state.peers.get(from);
-  if (!peer || !candidate) return;
-
-  try {
-    await peer.pc.addIceCandidate(candidate);
-  } catch (error) {
-    console.warn("Falha ao adicionar ICE candidate", error);
-  }
 });
 
 async function joinVoice() {
+  if (!state.selfId || state.busy) return;
+
+  setBusy(true, "Conectando ao LiveKit...");
   try {
-    state.localStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      },
-      video: false
-    });
+    const room = await connectLiveKitRoom();
     state.muted = false;
+    await room.localParticipant.setMicrophoneEnabled(true, AUDIO_OPTIONS);
     socket.emit("presence:update", { inVoice: true, muted: false, channel: state.channel });
     syncSelfPanel();
     render();
-    reconcileVoicePeers(true);
   } catch (error) {
-    alert("Nao foi possivel acessar o microfone. Verifique a permissao do navegador.");
+    const message = error?.message || "Nao foi possivel entrar na chamada LiveKit.";
+    alert(message);
     console.error(error);
+    await disconnectLiveKitRoom();
+  } finally {
+    setBusy(false);
   }
 }
 
-function leaveVoice() {
-  state.localStream?.getTracks().forEach((track) => track.stop());
-  state.localStream = null;
-  state.muted = false;
-  for (const id of state.peers.keys()) {
-    closePeer(id);
-  }
+async function leaveVoice() {
+  if (state.busy) return;
+
+  setBusy(true, "Encerrando chamada...");
+  await disconnectLiveKitRoom();
   socket.emit("presence:update", { inVoice: false, muted: false });
   syncSelfPanel();
   render();
+  setBusy(false);
+}
+
+async function toggleMute() {
+  if (!state.livekitRoom || state.busy) return;
+
+  const nextMuted = !state.muted;
+  setBusy(true, nextMuted ? "Mutando..." : "Abrindo microfone...");
+  try {
+    await state.livekitRoom.localParticipant.setMicrophoneEnabled(!nextMuted, AUDIO_OPTIONS);
+    state.muted = nextMuted;
+    socket.emit("presence:update", { muted: state.muted });
+    syncSelfPanel();
+    render();
+  } catch (error) {
+    console.error("Falha ao alternar microfone", error);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function toggleCamera() {
+  if (state.busy) return;
+  if (!state.livekitRoom) {
+    await joinVoice();
+    if (!state.livekitRoom) return;
+  }
+
+  const enableCamera = !state.cameraOn;
+  setBusy(true, enableCamera ? "Abrindo camera..." : "Fechando camera...");
+  try {
+    await state.livekitRoom.localParticipant.setCameraEnabled(enableCamera, CAMERA_OPTIONS);
+    state.cameraOn = enableCamera;
+    syncSelfPanel();
+    renderMediaEmptyState();
+  } catch (error) {
+    alert("Nao foi possivel acessar a camera. Verifique a permissao do navegador.");
+    console.error(error);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function toggleScreenShare() {
+  if (state.busy) return;
+  if (!state.livekitRoom) {
+    await joinVoice();
+    if (!state.livekitRoom) return;
+  }
+
+  const enableScreen = !state.screenOn;
+  setBusy(true, enableScreen ? "Compartilhando tela..." : "Parando tela...");
+  try {
+    await state.livekitRoom.localParticipant.setScreenShareEnabled(
+      enableScreen,
+      SCREEN_OPTIONS,
+      {
+        screenShareEncoding: ScreenSharePresets.h1080fps15.encoding,
+        dtx: true,
+        red: true
+      }
+    );
+    state.screenOn = enableScreen;
+    syncSelfPanel();
+    renderMediaEmptyState();
+  } catch (error) {
+    if (error?.name !== "NotAllowedError") {
+      alert("Nao foi possivel iniciar o compartilhamento de tela.");
+      console.error(error);
+    }
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function connectLiveKitRoom() {
+  const roomName = liveKitRoomName(state.channel);
+  if (state.livekitRoom && state.livekitRoomName === roomName) {
+    return state.livekitRoom;
+  }
+
+  if (state.livekitRoom) {
+    await disconnectLiveKitRoom({ resetControls: false });
+  }
+
+  clearMediaElements();
+
+  const room = new Room({
+    adaptiveStream: true,
+    dynacast: true,
+    disconnectOnPageLeave: true,
+    audioCaptureDefaults: AUDIO_OPTIONS,
+    videoCaptureDefaults: CAMERA_OPTIONS,
+    publishDefaults: {
+      videoCodec: "vp8",
+      simulcast: true,
+      dtx: true,
+      red: true,
+      stopMicTrackOnMute: true
+    }
+  });
+
+  bindLiveKitRoom(room);
+  state.livekitRoom = room;
+  state.livekitRoomName = roomName;
+
+  const credentials = await getLiveKitCredentials(roomName);
+  await room.connect(credentials.url, credentials.token, {
+    autoSubscribe: true,
+    maxRetries: 2,
+    peerConnectionTimeout: 15000,
+    websocketTimeout: 15000
+  });
+  mountExistingTracks(room);
+  setConnectionStatus(`LiveKit: ${CHANNELS[state.channel].label}`);
+  return room;
+}
+
+async function switchLiveKitRoom() {
+  if (state.busy) return;
+
+  const keepCamera = state.cameraOn;
+  const keepMuted = state.muted;
+  const hadScreenShare = state.screenOn;
+
+  setBusy(true, "Mudando de canal...");
+  try {
+    await disconnectLiveKitRoom({ resetControls: false });
+    state.cameraOn = false;
+    state.screenOn = false;
+    state.muted = keepMuted;
+
+    const room = await connectLiveKitRoom();
+    await room.localParticipant.setMicrophoneEnabled(!keepMuted, AUDIO_OPTIONS);
+    if (keepCamera) {
+      await room.localParticipant.setCameraEnabled(true, CAMERA_OPTIONS);
+      state.cameraOn = true;
+    }
+    if (hadScreenShare) {
+      state.screenOn = false;
+      setConnectionStatus("Tela encerrada ao trocar de canal");
+    }
+    socket.emit("presence:update", { inVoice: true, muted: keepMuted, channel: state.channel });
+    syncSelfPanel();
+    render();
+  } catch (error) {
+    alert("Nao foi possivel trocar a sala LiveKit.");
+    console.error(error);
+    await disconnectLiveKitRoom();
+    socket.emit("presence:update", { inVoice: false, muted: false });
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function disconnectLiveKitRoom({ resetControls = true } = {}) {
+  const room = state.livekitRoom;
+  state.livekitRoom = null;
+  state.livekitRoomName = null;
+
+  if (room) {
+    await room.disconnect();
+  }
+
+  clearMediaElements();
+
+  if (resetControls) {
+    state.muted = false;
+    state.cameraOn = false;
+    state.screenOn = false;
+  }
+  setConnectionStatus("LiveKit pronto");
+  renderMediaEmptyState();
+}
+
+function bindLiveKitRoom(room) {
+  room
+    .on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      mountMediaTrack(track, publication, participant);
+    })
+    .on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+      removeMediaTrack(track, publication, participant);
+    })
+    .on(RoomEvent.TrackUnpublished, (publication, participant) => {
+      removeMediaTrack(publication.track, publication, participant);
+    })
+    .on(RoomEvent.LocalTrackPublished, (publication, participant) => {
+      updateLocalMediaState(publication, true);
+      if (publication.track) {
+        mountMediaTrack(publication.track, publication, participant, true);
+      }
+      syncSelfPanel();
+    })
+    .on(RoomEvent.LocalTrackUnpublished, (publication, participant) => {
+      updateLocalMediaState(publication, false);
+      removeMediaTrack(publication.track, publication, participant);
+      syncSelfPanel();
+    })
+    .on(RoomEvent.TrackMuted, () => {
+      renderMediaLabels();
+    })
+    .on(RoomEvent.TrackUnmuted, () => {
+      renderMediaLabels();
+    })
+    .on(RoomEvent.ParticipantDisconnected, (participant) => {
+      removeParticipantMedia(participant.identity);
+    })
+    .on(RoomEvent.Reconnecting, () => {
+      setConnectionStatus("Reconectando LiveKit...");
+    })
+    .on(RoomEvent.Reconnected, () => {
+      setConnectionStatus(`LiveKit: ${CHANNELS[state.channel].label}`);
+    })
+    .on(RoomEvent.Disconnected, () => {
+      if (state.livekitRoom !== room) return;
+
+      state.livekitRoom = null;
+      state.livekitRoomName = null;
+      state.cameraOn = false;
+      state.screenOn = false;
+      state.muted = false;
+      clearMediaElements();
+      socket.emit("presence:update", { inVoice: false, muted: false });
+      syncSelfPanel();
+      render();
+    });
+}
+
+async function getLiveKitCredentials(room) {
+  const params = new URLSearchParams({
+    room,
+    identity: state.selfId,
+    name: state.name || "Convidado"
+  });
+  const response = await fetch(`/api/livekit-token?${params}`);
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "LiveKit nao configurado.");
+  }
+
+  return data;
+}
+
+function mountExistingTracks(room) {
+  room.localParticipant.trackPublications.forEach((publication) => {
+    if (publication.track) {
+      updateLocalMediaState(publication, true);
+      mountMediaTrack(publication.track, publication, room.localParticipant, true);
+    }
+  });
+
+  room.remoteParticipants.forEach((participant) => {
+    participant.trackPublications.forEach((publication) => {
+      if (publication.isSubscribed && publication.track) {
+        mountMediaTrack(publication.track, publication, participant);
+      }
+    });
+  });
+
+  renderMediaEmptyState();
+}
+
+function mountMediaTrack(track, publication, participant, forceLocal = false) {
+  if (!track || publication.source === Track.Source.Microphone) return;
+
+  const key = mediaKey(participant, publication);
+  if (state.mediaElements.has(key)) {
+    removeMediaTrack(track, publication, participant);
+  }
+
+  const isLocal = forceLocal || participant.identity === state.selfId;
+
+  if (track.kind === Track.Kind.Audio) {
+    const audio = track.attach();
+    audio.autoplay = true;
+    audio.dataset.mediaKey = key;
+    els.audioMount.append(audio);
+    state.mediaElements.set(key, { key, kind: "audio", track, element: audio });
+    return;
+  }
+
+  const tile = document.createElement("article");
+  tile.className = `media-tile ${isLocal ? "local" : ""}`;
+  tile.dataset.mediaKey = key;
+  tile.dataset.identity = participant.identity;
+  tile.dataset.source = publication.source || "video";
+
+  const video = track.attach();
+  video.className = "media-video";
+  video.autoplay = true;
+  video.playsInline = true;
+  video.muted = isLocal;
+
+  tile.append(video, mediaCaption(participant, publication, isLocal));
+  els.mediaGrid.append(tile);
+  state.mediaElements.set(key, { key, kind: "video", track, tile, element: video });
+  renderMediaEmptyState();
+}
+
+function removeMediaTrack(track, publication, participant) {
+  const key = mediaKey(participant, publication);
+  const mounted = state.mediaElements.get(key);
+
+  if (mounted) {
+    mounted.track?.detach().forEach((element) => element.remove());
+    mounted.tile?.remove();
+    mounted.element?.remove();
+    state.mediaElements.delete(key);
+  } else {
+    track?.detach().forEach((element) => element.remove());
+  }
+
+  renderMediaEmptyState();
+}
+
+function removeParticipantMedia(identity) {
+  for (const [key, mounted] of state.mediaElements) {
+    if (!key.startsWith(`${identity}:`)) continue;
+    mounted.track?.detach().forEach((element) => element.remove());
+    mounted.tile?.remove();
+    mounted.element?.remove();
+    state.mediaElements.delete(key);
+  }
+  renderMediaEmptyState();
+}
+
+function clearMediaElements() {
+  for (const mounted of state.mediaElements.values()) {
+    mounted.track?.detach().forEach((element) => element.remove());
+    mounted.tile?.remove();
+    mounted.element?.remove();
+  }
+  state.mediaElements.clear();
+  els.mediaGrid.innerHTML = "";
+  els.audioMount.innerHTML = "";
+}
+
+function mediaCaption(participant, publication, isLocal) {
+  const caption = document.createElement("div");
+  caption.className = "media-caption";
+
+  const name = document.createElement("strong");
+  name.textContent = isLocal ? `${participant.name || state.name} (voce)` : participant.name || "Convidado";
+
+  const source = document.createElement("span");
+  source.textContent = sourceLabel(publication.source);
+
+  caption.append(name, source);
+  return caption;
+}
+
+function renderMediaLabels() {
+  for (const [key, mounted] of state.mediaElements) {
+    const tile = mounted.tile;
+    if (!tile) continue;
+
+    const participant = state.livekitRoom?.getParticipantByIdentity(tile.dataset.identity);
+    const publication = participant?.getTrackPublication(tile.dataset.source);
+    const caption = tile.querySelector(".media-caption span");
+    if (caption && publication) {
+      caption.textContent = publication.isMuted
+        ? `${sourceLabel(publication.source)} pausado`
+        : sourceLabel(publication.source);
+    }
+  }
+}
+
+function renderMediaEmptyState() {
+  const hasVideo = Array.from(state.mediaElements.values()).some((item) => item.kind === "video");
+  els.mediaGrid.classList.toggle("empty", !hasVideo);
+  if (!hasVideo) {
+    els.mediaGrid.innerHTML = `
+      <div class="media-empty">
+        <strong>Sem video ativo</strong>
+        <small>Abra a camera ou compartilhe a tela para aparecer aqui.</small>
+      </div>
+    `;
+  } else {
+    els.mediaGrid.querySelector(".media-empty")?.remove();
+  }
+}
+
+function updateLocalMediaState(publication, enabled) {
+  if (publication.source === Track.Source.Camera) {
+    state.cameraOn = enabled;
+  }
+  if (publication.source === Track.Source.ScreenShare) {
+    state.screenOn = enabled;
+  }
+}
+
+function mediaKey(participant, publication) {
+  const identity = participant?.identity || state.selfId || "local";
+  const source = publication?.source || publication?.trackName || publication?.trackSid || "track";
+  return `${identity}:${source}`;
+}
+
+function sourceLabel(source) {
+  if (source === Track.Source.Camera) return "Camera";
+  if (source === Track.Source.ScreenShare) return "Tela";
+  if (source === Track.Source.ScreenShareAudio) return "Audio da tela";
+  return "Midia";
+}
+
+function liveKitRoomName(channel) {
+  return `tec-hq-${channel}`;
 }
 
 function setChannel(channel) {
@@ -236,81 +652,23 @@ function channelFromPosition(x, y) {
   return null;
 }
 
-function reconcileVoicePeers(forceOffers = false) {
-  if (!state.localStream || !state.selfId) return;
-
-  for (const [id, user] of state.users) {
-    if (id === state.selfId) continue;
-
-    const shouldConnect = user.inVoice && user.channel === state.channel;
-    if (!shouldConnect) {
-      closePeer(id);
-      continue;
-    }
-
-    if (!state.peers.has(id) && forceOffers) {
-      startOffer(id);
-    }
+function setBusy(busy, label = "") {
+  state.busy = busy;
+  els.voiceButton.disabled = busy && !state.livekitRoom;
+  els.muteButton.disabled = busy || !state.livekitRoom;
+  els.cameraButton.disabled = busy || !state.selfId;
+  els.screenButton.disabled = busy || !state.selfId;
+  if (label) {
+    setConnectionStatus(label);
+  } else if (state.livekitRoom) {
+    setConnectionStatus(`LiveKit: ${CHANNELS[state.channel].label}`);
+  } else {
+    setConnectionStatus("LiveKit pronto");
   }
 }
 
-async function startOffer(id) {
-  const peer = createPeer(id);
-  const offer = await peer.pc.createOffer();
-  await peer.pc.setLocalDescription(offer);
-  socket.emit("rtc:offer", { to: id, description: peer.pc.localDescription });
-}
-
-function createPeer(id) {
-  if (state.peers.has(id)) {
-    return state.peers.get(id);
-  }
-
-  const pc = new RTCPeerConnection(rtcConfig);
-  const audio = document.createElement("audio");
-  audio.autoplay = true;
-  audio.playsInline = true;
-  audio.dataset.peer = id;
-  els.audioMount.append(audio);
-
-  state.localStream?.getTracks().forEach((track) => {
-    pc.addTrack(track, state.localStream);
-  });
-
-  pc.ontrack = (event) => {
-    const [stream] = event.streams;
-    audio.srcObject = stream;
-  };
-
-  pc.onicecandidate = (event) => {
-    if (event.candidate) {
-      socket.emit("rtc:ice-candidate", { to: id, candidate: event.candidate });
-    }
-  };
-
-  pc.onconnectionstatechange = () => {
-    if (["failed", "closed", "disconnected"].includes(pc.connectionState)) {
-      closePeer(id);
-    }
-  };
-
-  const peer = { pc, audio };
-  state.peers.set(id, peer);
-  return peer;
-}
-
-function closePeer(id) {
-  const peer = state.peers.get(id);
-  if (!peer) return;
-
-  peer.pc.close();
-  peer.audio.remove();
-  state.peers.delete(id);
-}
-
-function isSameVoiceChannel(id) {
-  const user = state.users.get(id);
-  return Boolean(user?.inVoice && user.channel === state.channel);
+function setConnectionStatus(label) {
+  els.connectionStatus.textContent = label;
 }
 
 function render() {
@@ -318,6 +676,7 @@ function render() {
   renderOnlineList();
   renderVoiceStrip();
   renderMap();
+  syncSelfPanel();
 }
 
 function renderChannels() {
@@ -327,8 +686,8 @@ function renderChannels() {
 
   const channel = CHANNELS[state.channel];
   els.voiceTitle.textContent = channel?.label || "Canal";
-  els.voiceSubtitle.textContent = state.localStream
-    ? "Sua voz esta ativa neste canal."
+  els.voiceSubtitle.textContent = state.livekitRoom
+    ? "Audio, camera e tela estao trafegando pelo LiveKit."
     : "Entre para conversar com quem estiver no mesmo canal.";
 }
 
@@ -395,15 +754,23 @@ function syncSelfPanel() {
   els.selfName.textContent = name;
   els.selfAvatar.textContent = initials(name);
   els.selfAvatar.style.background = state.color;
-  els.selfStatus.textContent = state.localStream
+  els.selfStatus.textContent = state.livekitRoom
     ? state.muted
       ? "em chamada, mutado"
-      : "em chamada"
+      : state.cameraOn
+        ? "em chamada, camera ativa"
+        : "em chamada"
     : "fora da chamada";
-  els.voiceButton.textContent = state.localStream ? "Sair da voz" : "Entrar na voz";
-  els.voiceButton.classList.toggle("live", Boolean(state.localStream));
-  els.muteButton.disabled = !state.localStream;
+  els.voiceButton.textContent = state.livekitRoom ? "Sair da voz" : "Entrar na voz";
+  els.voiceButton.classList.toggle("live", Boolean(state.livekitRoom));
+  els.muteButton.disabled = state.busy || !state.livekitRoom;
+  els.cameraButton.disabled = state.busy || !state.selfId;
+  els.screenButton.disabled = state.busy || !state.selfId;
   els.muteIcon.textContent = state.muted ? "off" : "mic";
+  els.cameraIcon.textContent = state.cameraOn ? "cam off" : "cam";
+  els.screenIcon.textContent = state.screenOn ? "stop" : "tela";
+  els.cameraButton.classList.toggle("active", state.cameraOn);
+  els.screenButton.classList.toggle("active", state.screenOn);
 }
 
 function pickColor() {

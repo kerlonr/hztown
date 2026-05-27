@@ -1,8 +1,10 @@
 import express from "express";
 import http from "http";
+import { randomUUID } from "crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 import { Server } from "socket.io";
+import { AccessToken } from "livekit-server-sdk";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,15 +14,68 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
+const LIVEKIT_URL = process.env.LIVEKIT_URL;
+const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
+const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
 const spaces = new Map();
 
 app.use(express.static(path.join(__dirname, "public")));
+app.use(
+  "/vendor/livekit-client",
+  express.static(path.join(__dirname, "node_modules", "livekit-client", "dist"))
+);
+
+app.get("/api/livekit-token", async (req, res) => {
+  if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
+    res.status(503).json({
+      error:
+        "LiveKit nao configurado. Defina LIVEKIT_URL, LIVEKIT_API_KEY e LIVEKIT_API_SECRET."
+    });
+    return;
+  }
+
+  const room = sanitizeLiveKitId(req.query.room, "tec-hq-team");
+  const identity = sanitizeLiveKitId(req.query.identity, `guest-${randomUUID()}`);
+  const name = String(req.query.name || "Convidado").trim().slice(0, 28);
+
+  try {
+    const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+      identity,
+      name,
+      ttl: "2h"
+    });
+
+    token.addGrant({
+      room,
+      roomJoin: true,
+      canPublish: true,
+      canPublishData: true,
+      canSubscribe: true
+    });
+
+    res.json({
+      url: LIVEKIT_URL,
+      token: await token.toJwt()
+    });
+  } catch (error) {
+    console.error("Falha ao gerar token LiveKit", error);
+    res.status(500).json({ error: "Nao foi possivel gerar o token LiveKit." });
+  }
+});
 
 function getSpace(spaceId) {
   if (!spaces.has(spaceId)) {
     spaces.set(spaceId, new Map());
   }
   return spaces.get(spaceId);
+}
+
+function sanitizeLiveKitId(value, fallback) {
+  const text = String(value || fallback)
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, "-")
+    .slice(0, 96);
+  return text || fallback;
 }
 
 function publicUser(user) {

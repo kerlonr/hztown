@@ -68,6 +68,12 @@
             <button id="muteButton" class="icon-button" title="Mutar microfone" disabled>
               <span id="muteIcon">mic</span>
             </button>
+            <button id="cameraButton" class="icon-button" title="Abrir camera" disabled>
+              <span id="cameraIcon">cam</span>
+            </button>
+            <button id="screenButton" class="icon-button" title="Transmitir tela" disabled>
+              <span id="screenIcon">tela</span>
+            </button>
             <button id="voiceButton" class="primary-button">Entrar na voz</button>
           </div>
         </header>
@@ -76,8 +82,18 @@
           <div>
             <strong id="voiceTitle">Team</strong>
             <small id="voiceSubtitle">Entre para conversar com quem estiver no mesmo canal.</small>
+            <small id="connectionStatus">LiveKit pronto</small>
           </div>
           <div id="voiceTiles" class="voice-tiles"></div>
+        </section>
+
+        <section class="media-dock" aria-label="Video e compartilhamento">
+          <div id="mediaGrid" class="media-grid empty">
+            <div class="media-empty">
+              <strong>Sem video ativo</strong>
+              <small>Abra a camera ou compartilhe a tela para aparecer aqui.</small>
+            </div>
+          </div>
         </section>
 
         <section class="floor-wrapper">
