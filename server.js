@@ -109,6 +109,6 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Projeto GT rodando em http://localhost:${PORT}`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Projeto GT rodando na porta ${PORT}`);
 });
