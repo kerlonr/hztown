@@ -42,6 +42,8 @@ const SCREEN_OPTIONS = {
   systemAudio: "include"
 };
 
+const MIC_TEST_TIMEOUT_MS = 12000;
+
 const state = {
   selfId: null,
   name: "",
@@ -59,7 +61,8 @@ const state = {
   cameraOn: false,
   screenOn: false,
   joined: false,
-  busy: false
+  busy: false,
+  micTest: null
 };
 
 const els = {
@@ -73,12 +76,16 @@ const els = {
   voiceButton: document.querySelector("#voiceButton"),
   muteButton: document.querySelector("#muteButton"),
   muteIcon: document.querySelector("#muteIcon"),
+  micTestButton: document.querySelector("#micTestButton"),
   cameraButton: document.querySelector("#cameraButton"),
   cameraIcon: document.querySelector("#cameraIcon"),
   screenButton: document.querySelector("#screenButton"),
   screenIcon: document.querySelector("#screenIcon"),
   chatButton: document.querySelector("#chatButton"),
   connectionStatus: document.querySelector("#connectionStatus"),
+  micMeter: document.querySelector("#micMeter"),
+  micMeterBar: document.querySelector("#micMeterBar"),
+  micStatus: document.querySelector("#micStatus"),
   voiceTitle: document.querySelector("#voiceTitle"),
   voiceSubtitle: document.querySelector("#voiceSubtitle"),
   voiceTiles: document.querySelector("#voiceTiles"),
@@ -131,6 +138,14 @@ els.voiceButton.addEventListener("click", () => {
 
 els.muteButton.addEventListener("click", () => {
   toggleMute();
+});
+
+els.micTestButton.addEventListener("click", () => {
+  if (state.micTest) {
+    stopMicTest("Teste encerrado");
+  } else {
+    startMicTest();
+  }
 });
 
 els.cameraButton.addEventListener("click", () => {
@@ -562,7 +577,7 @@ function mountExistingTracks(room) {
 }
 
 function mountMediaTrack(track, publication, participant, forceLocal = false) {
-  if (!track || publication.source === Track.Source.Microphone) return;
+  if (!track) return;
 
   const key = mediaKey(participant, publication);
   if (state.mediaElements.has(key)) {
@@ -572,8 +587,11 @@ function mountMediaTrack(track, publication, participant, forceLocal = false) {
   const isLocal = forceLocal || participant.identity === state.selfId;
 
   if (track.kind === Track.Kind.Audio) {
+    if (isLocal) return;
+
     const audio = track.attach();
     audio.autoplay = true;
+    audio.playsInline = true;
     audio.dataset.mediaKey = key;
     els.audioMount.append(audio);
     state.mediaElements.set(key, { key, kind: "audio", track, element: audio });
@@ -732,6 +750,7 @@ function setBusy(busy, label = "") {
   state.busy = busy;
   els.voiceButton.disabled = busy && !state.livekitRoom;
   els.muteButton.disabled = busy || !state.livekitRoom;
+  els.micTestButton.disabled = busy;
   els.cameraButton.disabled = busy || !state.selfId;
   els.screenButton.disabled = busy || !state.selfId;
   if (label) {
@@ -856,12 +875,14 @@ function syncSelfPanel() {
   els.voiceButton.textContent = state.livekitRoom ? "Sair da voz" : "Entrar na voz";
   els.voiceButton.classList.toggle("live", Boolean(state.livekitRoom));
   els.muteButton.disabled = state.busy || !state.livekitRoom;
+  els.micTestButton.disabled = state.busy;
   els.cameraButton.disabled = state.busy || !state.selfId;
   els.screenButton.disabled = state.busy || !state.selfId;
   els.muteIcon.textContent = state.muted ? "Off" : "Mic";
   els.cameraIcon.textContent = state.cameraOn ? "Off" : "Cam";
   els.screenIcon.textContent = state.screenOn ? "Stop" : "Tela";
   els.muteButton.classList.toggle("active", state.livekitRoom && !state.muted);
+  els.micTestButton.classList.toggle("active", Boolean(state.micTest));
   els.cameraButton.classList.toggle("active", state.cameraOn);
   els.screenButton.classList.toggle("active", state.screenOn);
   syncSkinPicker();
@@ -885,20 +906,49 @@ function renderChat(forceScroll = false) {
     return;
   }
 
-  for (const message of messages) {
-    const row = document.createElement("article");
-    row.className = "chat-message";
+  for (let index = 0; index < messages.length; index += 1) {
+    const message = messages[index];
+    const previous = messages[index - 1];
+    const isOwn = message.userId === state.selfId;
+    const isGrouped =
+      previous &&
+      previous.userId === message.userId &&
+      message.createdAt - previous.createdAt < 5 * 60 * 1000;
 
-    const avatar = document.createElement("div");
-    avatar.className = "avatar";
-    applyAvatar(avatar, message);
+    const row = document.createElement("article");
+    row.className = `chat-message ${isOwn ? "own" : ""} ${isGrouped ? "grouped" : ""}`;
+
+    if (!isOwn) {
+      if (isGrouped) {
+        const spacer = document.createElement("div");
+        spacer.className = "chat-avatar-spacer";
+        row.append(spacer);
+      } else {
+        const avatar = document.createElement("div");
+        avatar.className = "avatar";
+        applyAvatar(avatar, message);
+        row.append(avatar);
+      }
+    }
 
     const body = document.createElement("div");
-    const meta = document.createElement("div");
-    meta.className = "chat-meta";
+    body.className = "chat-body";
 
-    const name = document.createElement("strong");
-    name.textContent = message.userId === state.selfId ? `${message.name} (voce)` : message.name;
+    if (!isOwn && !isGrouped) {
+      const meta = document.createElement("div");
+      meta.className = "chat-meta";
+
+      const name = document.createElement("strong");
+      name.textContent = message.name;
+      meta.append(name);
+      body.append(meta);
+    }
+
+    const bubble = document.createElement("div");
+    bubble.className = "chat-bubble";
+
+    const text = document.createElement("p");
+    text.textContent = message.text;
 
     const time = document.createElement("time");
     time.dateTime = new Date(message.createdAt).toISOString();
@@ -907,12 +957,9 @@ function renderChat(forceScroll = false) {
       minute: "2-digit"
     });
 
-    const text = document.createElement("p");
-    text.textContent = message.text;
-
-    meta.append(name, time);
-    body.append(meta, text);
-    row.append(avatar, body);
+    bubble.append(text, time);
+    body.append(bubble);
+    row.append(body);
     els.chatMessages.append(row);
   }
 
@@ -931,6 +978,102 @@ function syncSpeakingIndicators() {
   document.querySelectorAll(".avatar[data-identity], .map-avatar[data-identity]").forEach((avatar) => {
     avatar.classList.toggle("speaking", state.speakingIds.has(avatar.dataset.identity));
   });
+}
+
+async function startMicTest() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setMicStatus("Seu navegador nao liberou teste de microfone.", 0);
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_OPTIONS });
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioContextClass();
+    const source = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser();
+
+    analyser.fftSize = 512;
+    source.connect(analyser);
+
+    const samples = new Uint8Array(analyser.fftSize);
+    const startedAt = Date.now();
+
+    state.micTest = {
+      stream,
+      audioContext,
+      analyser,
+      source,
+      animationFrame: null,
+      timeout: null,
+      peak: 0
+    };
+
+    els.micTestButton.classList.add("active");
+    setMicStatus("Fale agora...", 0);
+
+    const tick = () => {
+      if (!state.micTest) return;
+
+      analyser.getByteTimeDomainData(samples);
+      let sum = 0;
+      for (const sample of samples) {
+        const value = (sample - 128) / 128;
+        sum += value * value;
+      }
+
+      const rms = Math.sqrt(sum / samples.length);
+      const level = clamp(rms * 5, 0, 1);
+      state.micTest.peak = Math.max(state.micTest.peak, level);
+
+      const elapsed = Date.now() - startedAt;
+      const status =
+        level > 0.18
+          ? "Mic captando voz"
+          : elapsed > 1800 && state.micTest.peak < 0.08
+            ? "Entrada baixa ou silencio"
+            : "Fale agora...";
+
+      setMicStatus(status, level);
+      state.micTest.animationFrame = requestAnimationFrame(tick);
+    };
+
+    tick();
+    state.micTest.timeout = setTimeout(() => {
+      const status = state.micTest?.peak > 0.12 ? "Mic funcionando" : "Mic muito baixo";
+      stopMicTest(status);
+    }, MIC_TEST_TIMEOUT_MS);
+  } catch (error) {
+    const denied = error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError";
+    setMicStatus(denied ? "Permissao do mic negada" : "Nao consegui acessar o mic", 0);
+    console.error("Falha ao testar microfone", error);
+  } finally {
+    syncSelfPanel();
+  }
+}
+
+function stopMicTest(status = "Teste encerrado") {
+  const micTest = state.micTest;
+  state.micTest = null;
+
+  if (micTest?.animationFrame) {
+    cancelAnimationFrame(micTest.animationFrame);
+  }
+  if (micTest?.timeout) {
+    clearTimeout(micTest.timeout);
+  }
+  micTest?.source?.disconnect();
+  micTest?.stream?.getTracks().forEach((track) => track.stop());
+  micTest?.audioContext?.close();
+
+  setMicStatus(status, 0);
+  syncSelfPanel();
+}
+
+function setMicStatus(status, level) {
+  els.micStatus.textContent = status;
+  els.micMeterBar.style.width = `${Math.round(level * 100)}%`;
+  els.micMeter.classList.toggle("live", level > 0.12);
 }
 
 function setAvatar(avatar) {

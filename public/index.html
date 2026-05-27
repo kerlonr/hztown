@@ -64,25 +64,6 @@
             <p class="eyebrow">Comunicacao centralizada</p>
             <h1>Tec HQ</h1>
           </div>
-          <div class="topbar-actions">
-            <button id="muteButton" class="tool-button" title="Mutar microfone" disabled>
-              <span id="muteIcon" class="tool-icon">Mic</span>
-              <span>Microfone</span>
-            </button>
-            <button id="cameraButton" class="tool-button" title="Abrir camera" disabled>
-              <span id="cameraIcon" class="tool-icon">Cam</span>
-              <span>Camera</span>
-            </button>
-            <button id="screenButton" class="tool-button" title="Transmitir tela" disabled>
-              <span id="screenIcon" class="tool-icon">Tela</span>
-              <span>Tela</span>
-            </button>
-            <button id="chatButton" class="tool-button active" title="Abrir chat" type="button">
-              <span class="tool-icon">Chat</span>
-              <span>Chat</span>
-            </button>
-            <button id="voiceButton" class="primary-button">Entrar na voz</button>
-          </div>
         </header>
 
         <section class="voice-strip" aria-label="Participantes da chamada">
@@ -90,6 +71,10 @@
             <strong id="voiceTitle">Team</strong>
             <small id="voiceSubtitle">Entre para conversar com quem estiver no mesmo canal.</small>
             <small id="connectionStatus">LiveKit pronto</small>
+            <div id="micMeter" class="mic-meter" aria-label="Nivel do microfone">
+              <span id="micMeterBar"></span>
+            </div>
+            <small id="micStatus">Mic nao testado</small>
           </div>
           <div id="voiceTiles" class="voice-tiles"></div>
         </section>
@@ -126,6 +111,30 @@
                 <div id="avatarsLayer" class="avatars-layer"></div>
               </div>
             </section>
+
+            <div class="topbar-actions">
+              <button id="muteButton" class="tool-button" title="Mutar microfone" disabled>
+                <span id="muteIcon" class="tool-icon">Mic</span>
+                <span>Microfone</span>
+              </button>
+              <button id="micTestButton" class="tool-button" title="Testar microfone" type="button">
+                <span class="tool-icon">Test</span>
+                <span>Teste mic</span>
+              </button>
+              <button id="cameraButton" class="tool-button" title="Abrir camera" disabled>
+                <span id="cameraIcon" class="tool-icon">Cam</span>
+                <span>Camera</span>
+              </button>
+              <button id="screenButton" class="tool-button" title="Transmitir tela" disabled>
+                <span id="screenIcon" class="tool-icon">Tela</span>
+                <span>Tela</span>
+              </button>
+              <button id="chatButton" class="tool-button active" title="Abrir chat" type="button">
+                <span class="tool-icon">Chat</span>
+                <span>Chat</span>
+              </button>
+              <button id="voiceButton" class="primary-button">Entrar na voz</button>
+            </div>
           </div>
 
           <aside id="chatPanel" class="chat-panel" aria-label="Chat de texto">
