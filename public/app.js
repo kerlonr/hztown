@@ -828,11 +828,13 @@ function syncSelfPanel() {
   els.screenButton.disabled = state.busy || !state.selfId;
   setIcon(els.voiceIcon, state.livekitRoom ? "phone-off" : "phone");
   setIcon(els.muteIcon, state.muted ? "mic-off" : "mic");
-  setIcon(els.cameraIcon, state.cameraOn ? "video-off" : "video");
-  setIcon(els.screenIcon, state.screenOn ? "monitor-off" : "monitor");
+  setIcon(els.cameraIcon, state.cameraOn ? "video" : "video-off");
+  setIcon(els.screenIcon, state.screenOn ? "monitor" : "monitor-off");
   els.muteButton.classList.toggle("active", state.livekitRoom && !state.muted);
+  els.muteButton.classList.toggle("inactive", state.livekitRoom && state.muted);
   els.micTestButton.classList.toggle("active", Boolean(state.micTest));
   els.cameraButton.classList.toggle("active", state.cameraOn);
+  els.cameraButton.classList.toggle("inactive", state.selfId && !state.cameraOn);
   els.screenButton.classList.toggle("active", state.screenOn);
   syncSkinPicker();
   syncChatPanel();
