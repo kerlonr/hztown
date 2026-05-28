@@ -1,203 +1,207 @@
 <!doctype html>
 <html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#10141a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Projeto GT" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Projeto GT</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="rail" aria-label="Espacos">
+        <button class="workspace-mark active" title="Tec HQ">GT</button>
+        <button class="workspace-dot" title="Adicionar espaco">+</button>
+      </aside>
 
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#10141a" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="Projeto GT" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Projeto GT</title>
-  <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="icon" href="/icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-  <link rel="stylesheet" href="/styles.css" />
-</head>
-
-<body>
-  <main class="app-shell">
-    <aside class="rail" aria-label="Espacos">
-      <button class="workspace-mark active" title="Tec HQ">GT</button>
-      <button class="workspace-dot" title="Adicionar espaco">+</button>
-    </aside>
-
-    <aside class="sidebar" aria-label="Navegacao">
-      <div class="brand">
-        <span>Projeto GT</span>
-      </div>
-
-      <section class="nav-section">
-        <p class="section-title">Canais de voz</p>
-        <button class="channel active" data-channel="team">
-          <span class="channel-icon">#</span>
-          <span>
-            Team
-            <small>Mesa principal</small>
-          </span>
-        </button>
-        <button class="channel" data-channel="daily">
-          <span class="channel-icon">#</span>
-          <span>
-            Daily
-            <small>Reunioes rapidas</small>
-          </span>
-        </button>
-        <button class="channel" data-channel="focus">
-          <span class="channel-icon">#</span>
-          <span>
-            Focus
-            <small>Trabalho profundo</small>
-          </span>
-        </button>
-      </section>
-
-      <section class="nav-section grow">
-        <p class="section-title">Online</p>
-        <div id="onlineList" class="online-list"></div>
-      </section>
-
-      <div class="user-panel">
-        <div id="selfAvatar" class="avatar">G</div>
-        <div>
-          <strong id="selfName">Convidado</strong>
-          <small id="selfStatus">fora da chamada</small>
+      <aside class="sidebar" aria-label="Navegacao">
+        <div class="brand">
+          <span>Projeto GT</span>
+          <small>Tec HQ</small>
         </div>
-      </div>
-    </aside>
 
-    <section class="voice-strip" aria-label="Participantes da chamada">
-      <div>
-        <strong id="voiceTitle">Team</strong>
-        <small id="voiceSubtitle">Entre para conversar com quem estiver no mesmo canal.</small>
-        <small id="connectionStatus">LiveKit pronto</small>
-        <div id="micMeter" class="mic-meter" aria-label="Nivel do microfone">
-          <span id="micMeterBar"></span>
-        </div>
-        <small id="micStatus">Mic nao testado</small>
-      </div>
-      <div id="voiceTiles" class="voice-tiles"></div>
-    </section>
-
-    <section class="workspace-body">
-      <div class="main-stage">
-        <section class="media-dock" aria-label="Video e compartilhamento">
-          <div id="mediaGrid" class="media-grid empty">
-            <div class="media-empty">
-              <strong>Sem video ativo</strong>
-              <small>Abra a camera ou compartilhe a tela para aparecer aqui.</small>
-            </div>
-          </div>
+        <section class="nav-section">
+          <p class="section-title">Canais de voz</p>
+          <button class="channel active" data-channel="team">
+            <span class="channel-icon">#</span>
+            <span>
+              Team
+              <small>Mesa principal</small>
+            </span>
+          </button>
+          <button class="channel" data-channel="daily">
+            <span class="channel-icon">#</span>
+            <span>
+              Daily
+              <small>Reunioes rapidas</small>
+            </span>
+          </button>
+          <button class="channel" data-channel="focus">
+            <span class="channel-icon">#</span>
+            <span>
+              Focus
+              <small>Trabalho profundo</small>
+            </span>
+          </button>
         </section>
 
-        <section class="floor-wrapper">
-          <div class="floor-plan" id="floorPlan" tabindex="0" aria-label="Planta baixa interativa">
-            <div class="room room-team" data-channel="team">
-              <span>Team</span>
-            </div>
-            <div class="room room-daily" data-channel="daily">
-              <span>Daily</span>
-            </div>
-            <div class="room room-focus" data-channel="focus">
-              <span>Focus</span>
-            </div>
-            <div class="room room-lounge">
-              <span>Lounge</span>
-            </div>
-            <div class="desk desk-a"></div>
-            <div class="desk desk-b"></div>
-            <div class="desk desk-c"></div>
-            <div class="proximity-zone" id="proximityZone"></div>
-            <div id="avatarsLayer" class="avatars-layer"></div>
-          </div>
+        <section class="nav-section grow">
+          <p class="section-title">Online</p>
+          <div id="onlineList" class="online-list"></div>
         </section>
 
-        <div class="topbar-actions">
-          <button id="muteButton" class="tool-button" aria-label="Mutar microfone" title="Mutar microfone" disabled>
-            <span id="muteIcon" class="tool-icon" data-icon="mic"></span>
-            <span class="sr-only">Microfone</span>
-          </button>
-          <button id="cameraButton" class="tool-button" aria-label="Abrir camera" title="Abrir camera" disabled>
-            <span id="cameraIcon" class="tool-icon" data-icon="video"></span>
-            <span class="sr-only">Camera</span>
-          </button>
-          <button id="voiceButton" class="primary-button call-button" aria-label="Entrar na voz" title="Entrar na voz">
-            <span id="voiceIcon" class="tool-icon" data-icon="phone"></span>
-            <span class="sr-only">Entrar na voz</span>
-          </button>
-          <button id="chatButton" class="tool-button active" aria-label="Abrir chat" title="Abrir chat" type="button">
-            <span class="tool-icon" data-icon="message"></span>
-            <span class="sr-only">Chat</span>
-          </button>
-          <button id="moreButton" class="tool-button more-button" aria-label="Mais opcoes" title="Mais opcoes"
-            type="button" aria-expanded="false">
-            <span class="tool-icon" data-icon="more"></span>
-            <span class="sr-only">Mais opcoes</span>
-          </button>
-          <div id="moreMenu" class="more-menu">
-            <button id="screenButton" class="tool-button" aria-label="Transmitir tela" title="Transmitir tela" disabled>
-              <span id="screenIcon" class="tool-icon" data-icon="monitor"></span>
-              <span class="tool-label">Tela</span>
-            </button>
-            <button id="micTestButton" class="tool-button" aria-label="Testar microfone" title="Testar microfone"
-              type="button">
-              <span class="tool-icon" data-icon="gauge"></span>
-              <span class="tool-label">Teste mic</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <aside id="chatPanel" class="chat-panel" aria-label="Chat de texto">
-        <header class="chat-header">
+        <div class="user-panel">
+          <div id="selfAvatar" class="avatar">G</div>
           <div>
-            <strong>Chat</strong>
-            <small id="chatChannelLabel">Team</small>
+            <strong id="selfName">Convidado</strong>
+            <small id="selfStatus">fora da chamada</small>
+          </div>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Comunicacao centralizada</p>
+            <h1>Tec HQ</h1>
           </div>
         </header>
-        <div id="chatMessages" class="chat-messages"></div>
-        <form id="chatForm" class="chat-form">
-          <input id="chatInput" maxlength="800" autocomplete="off" placeholder="Mensagem" />
-          <button class="primary-button" type="submit" aria-label="Enviar mensagem" title="Enviar mensagem">
-            <span class="tool-icon" data-icon="send"></span>
-            <span class="sr-only">Enviar</span>
-          </button>
-        </form>
-      </aside>
-    </section>
-    </section>
-  </main>
 
-  <dialog id="joinDialog" class="join-dialog">
-    <form method="dialog" id="joinForm">
-      <p class="eyebrow">Projeto GT</p>
-      <h2>Entrar no Chat</h2>
-      <label>
-        Seu nome
-        <input id="nameInput" name="name" maxlength="28" autocomplete="name" placeholder="Ex.: Renan" required />
-      </label>
-      <div class="skin-field">
-        <span>Skin</span>
-        <div class="skin-picker" id="skinPicker">
-          <button class="skin-option active" type="button" data-avatar="default:mint" title="Skin mint"></button>
-          <button class="skin-option" type="button" data-avatar="default:blue" title="Skin blue"></button>
-          <button class="skin-option" type="button" data-avatar="default:rose" title="Skin rose"></button>
-          <button class="skin-option" type="button" data-avatar="default:gold" title="Skin gold"></button>
-        </div>
-        <label class="upload-button">
-          Usar imagem
-          <input id="avatarInput" type="file" accept="image/png,image/jpeg,image/webp" />
+        <section class="voice-strip" aria-label="Participantes da chamada">
+          <div>
+            <strong id="voiceTitle">Team</strong>
+            <small id="voiceSubtitle">Entre para conversar com quem estiver no mesmo canal.</small>
+            <small id="connectionStatus">LiveKit pronto</small>
+            <div id="micMeter" class="mic-meter" aria-label="Nivel do microfone">
+              <span id="micMeterBar"></span>
+            </div>
+            <small id="micStatus">Mic nao testado</small>
+          </div>
+          <div id="voiceTiles" class="voice-tiles"></div>
+        </section>
+
+        <section class="workspace-body">
+          <div class="main-stage">
+            <section class="media-dock" aria-label="Video e compartilhamento">
+              <div id="mediaGrid" class="media-grid empty">
+                <div class="media-empty">
+                  <strong>Sem video ativo</strong>
+                  <small>Abra a camera ou compartilhe a tela para aparecer aqui.</small>
+                </div>
+              </div>
+            </section>
+
+            <section class="floor-wrapper">
+              <div class="floor-plan" id="floorPlan" tabindex="0" aria-label="Planta baixa interativa">
+                <div class="room room-team" data-channel="team">
+                  <span>Team</span>
+                </div>
+                <div class="room room-daily" data-channel="daily">
+                  <span>Daily</span>
+                </div>
+                <div class="room room-focus" data-channel="focus">
+                  <span>Focus</span>
+                </div>
+                <div class="room room-lounge">
+                  <span>Lounge</span>
+                </div>
+                <div class="desk desk-a"></div>
+                <div class="desk desk-b"></div>
+                <div class="desk desk-c"></div>
+                <div class="proximity-zone" id="proximityZone"></div>
+                <div id="avatarsLayer" class="avatars-layer"></div>
+              </div>
+            </section>
+
+            <div class="topbar-actions">
+              <button id="muteButton" class="tool-button" aria-label="Mutar microfone" title="Mutar microfone" disabled>
+                <span id="muteIcon" class="tool-icon" data-icon="mic"></span>
+                <span class="sr-only">Microfone</span>
+              </button>
+              <button id="cameraButton" class="tool-button" aria-label="Abrir camera" title="Abrir camera" disabled>
+                <span id="cameraIcon" class="tool-icon" data-icon="video"></span>
+                <span class="sr-only">Camera</span>
+              </button>
+              <button id="voiceButton" class="primary-button call-button" aria-label="Entrar na voz" title="Entrar na voz">
+                <span id="voiceIcon" class="tool-icon" data-icon="phone"></span>
+                <span class="sr-only">Entrar na voz</span>
+              </button>
+              <button id="chatButton" class="tool-button active" aria-label="Abrir chat" title="Abrir chat" type="button">
+                <span class="tool-icon" data-icon="message"></span>
+                <span class="sr-only">Chat</span>
+              </button>
+              <button id="moreButton" class="tool-button more-button" aria-label="Mais opcoes" title="Mais opcoes" type="button" aria-expanded="false">
+                <span class="tool-icon" data-icon="more"></span>
+                <span class="sr-only">Mais opcoes</span>
+              </button>
+              <div id="moreMenu" class="more-menu">
+                <button id="screenButton" class="tool-button" aria-label="Transmitir tela" title="Transmitir tela" disabled>
+                  <span id="screenIcon" class="tool-icon" data-icon="monitor"></span>
+                  <span class="tool-label">Tela</span>
+                </button>
+                <button id="micTestButton" class="tool-button" aria-label="Testar microfone" title="Testar microfone" type="button">
+                  <span class="tool-icon" data-icon="gauge"></span>
+                  <span class="tool-label">Teste mic</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <aside id="chatPanel" class="chat-panel" aria-label="Chat de texto">
+            <header class="chat-header">
+              <div>
+                <strong>Chat</strong>
+                <small id="chatChannelLabel">Team</small>
+              </div>
+            </header>
+            <div id="chatMessages" class="chat-messages"></div>
+            <form id="chatForm" class="chat-form">
+              <input id="chatInput" maxlength="800" autocomplete="off" placeholder="Mensagem" />
+              <button class="primary-button" type="submit" aria-label="Enviar mensagem" title="Enviar mensagem">
+                <span class="tool-icon" data-icon="send"></span>
+                <span class="sr-only">Enviar</span>
+              </button>
+            </form>
+          </aside>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="joinDialog" class="join-dialog">
+      <form method="dialog" id="joinForm">
+        <p class="eyebrow">Projeto ousado, nome fake</p>
+        <h2>Entrar na Tec HQ</h2>
+        <label>
+          Seu nome
+          <input id="nameInput" name="name" maxlength="28" autocomplete="name" placeholder="Ex.: Renan" required />
         </label>
-      </div>
-      <button class="primary-button" value="confirm">Entrar no espaço</button>
-    </form>
-  </dialog>
+        <div class="skin-field">
+          <span>Skin</span>
+          <div class="skin-picker" id="skinPicker">
+            <button class="skin-option active" type="button" data-avatar="default:mint" title="Skin mint"></button>
+            <button class="skin-option" type="button" data-avatar="default:blue" title="Skin blue"></button>
+            <button class="skin-option" type="button" data-avatar="default:rose" title="Skin rose"></button>
+            <button class="skin-option" type="button" data-avatar="default:gold" title="Skin gold"></button>
+          </div>
+          <label class="upload-button">
+            Usar imagem
+            <input id="avatarInput" type="file" accept="image/png,image/jpeg,image/webp" />
+          </label>
+        </div>
+        <button class="primary-button" value="confirm">Entrar no espaco</button>
+      </form>
+    </dialog>
 
-  <div id="audioMount" aria-hidden="true"></div>
-  <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="/app.js" type="module"></script>
-</body>
-
+    <div id="audioMount" aria-hidden="true"></div>
+    <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js" type="module"></script>
+  </body>
 </html>

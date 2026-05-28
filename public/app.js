@@ -545,7 +545,7 @@ function mountMediaTrack(track, publication, participant, forceLocal = false) {
   video.playsInline = true;
   video.muted = isLocal;
 
-  tile.append(video, mediaActions(tile), mediaCaption(participant, publication, isLocal));
+  tile.append(video, mediaCaption(participant, publication, isLocal));
   els.mediaGrid.append(tile);
   state.mediaElements.set(key, { key, kind: "video", track, tile, element: video });
   renderMediaEmptyState();
@@ -601,72 +601,6 @@ function mediaCaption(participant, publication, isLocal) {
 
   caption.append(name, source);
   return caption;
-}
-
-function mediaActions(tile) {
-  const actions = document.createElement("div");
-  actions.className = "media-actions";
-
-  const pinButton = createMediaAction("pin", "Destacar video", () => {
-    togglePinnedMedia(tile);
-  });
-
-  const fullscreenButton = createMediaAction("maximize", "Tela cheia", () => {
-    openMediaFullscreen(tile);
-  });
-
-  actions.append(pinButton, fullscreenButton);
-  return actions;
-}
-
-function createMediaAction(icon, label, onClick) {
-  const button = document.createElement("button");
-  button.className = "media-action";
-  button.type = "button";
-  button.title = label;
-  button.setAttribute("aria-label", label);
-
-  const iconSlot = document.createElement("span");
-  iconSlot.className = "tool-icon";
-  setIcon(iconSlot, icon);
-
-  button.append(iconSlot);
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    onClick(button);
-  });
-  return button;
-}
-
-function togglePinnedMedia(tile) {
-  const nextPinned = !tile.classList.contains("pinned");
-  els.mediaGrid.querySelectorAll(".media-tile.pinned").forEach((item) => {
-    item.classList.remove("pinned");
-    const button = item.querySelector(".media-action[aria-label='Remover destaque']");
-    if (button) {
-      button.title = "Destacar video";
-      button.setAttribute("aria-label", "Destacar video");
-      setIcon(button.querySelector(".tool-icon"), "pin");
-    }
-  });
-
-  tile.classList.toggle("pinned", nextPinned);
-  const pinButton = tile.querySelector(".media-action");
-  pinButton.title = nextPinned ? "Remover destaque" : "Destacar video";
-  pinButton.setAttribute("aria-label", pinButton.title);
-  setIcon(pinButton.querySelector(".tool-icon"), nextPinned ? "pin-off" : "pin");
-}
-
-async function openMediaFullscreen(tile) {
-  try {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-      return;
-    }
-    await tile.requestFullscreen();
-  } catch (error) {
-    console.error("Nao foi possivel abrir tela cheia", error);
-  }
 }
 
 function renderMediaLabels() {
