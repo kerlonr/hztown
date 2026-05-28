@@ -2,6 +2,10 @@ export const els = {
   joinDialog: document.querySelector("#joinDialog"),
   joinForm: document.querySelector("#joinForm"),
   nameInput: document.querySelector("#nameInput"),
+  selfAvatar: document.querySelector("#selfAvatar"),
+  selfName: document.querySelector("#selfName"),
+  selfStatus: document.querySelector("#selfStatus"),
+  onlineList: document.querySelector("#onlineList"),
   voiceButton: document.querySelector("#voiceButton"),
   voiceIcon: document.querySelector("#voiceIcon"),
   muteButton: document.querySelector("#muteButton"),
@@ -34,5 +38,6 @@ export const els = {
   chatInput: document.querySelector("#chatInput"),
   chatChannelLabel: document.querySelector("#chatChannelLabel"),
   avatarInput: document.querySelector("#avatarInput"),
-  skinButtons: Array.from(document.querySelectorAll(".skin-option"))
+  skinButtons: Array.from(document.querySelectorAll(".skin-option")),
+  channelButtons: Array.from(document.querySelectorAll(".channel"))
 };

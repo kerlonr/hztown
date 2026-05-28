@@ -59,14 +59,9 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 72px 288px minmax(0, 1fr);
   height: 100dvh;
   min-height: 0;
-  background:
-    linear-gradient(150deg, rgba(147, 197, 253, 0.08), transparent 28rem),
-    linear-gradient(40deg, transparent, rgba(110, 231, 183, 0.055)),
-    #10141a;
   overflow: hidden;
 }
 
@@ -1180,8 +1175,12 @@ small,
 
 @media (max-width: 860px) {
   .app-shell {
-    grid-template-rows: auto minmax(0, 1fr);
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rail,
+  .sidebar {
+    display: none;
   }
 
   .workspace {

@@ -44,7 +44,7 @@ LIVEKIT_API_KEY=sua_api_key
 LIVEKIT_API_SECRET=seu_api_secret
 ```
 
-Para self-host local, voce pode usar o servidor do repositorio `livekit/livekit` e gerar chave/secret no proprio LiveKit. O app cria uma sala por canal (`projeto-gt-team`, `projeto-gt-daily`, `projeto-gt-focus`) para reduzir assinatura de midia fora do contexto atual.
+Para self-host local, voce pode usar o servidor do repositorio `livekit/livekit` e gerar chave/secret no proprio LiveKit. O app cria uma sala por canal (`tec-hq-team`, `tec-hq-daily`, `tec-hq-focus`) para reduzir assinatura de midia fora do contexto atual.
 
 Modo dev local do LiveKit:
 
