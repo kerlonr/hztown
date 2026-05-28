@@ -31,9 +31,13 @@ export function renderChat(forceScroll = false) {
 }
 
 export function syncChatPanel() {
+  els.workspaceBody.classList.toggle("chat-open", state.chatOpen);
   els.workspaceBody.classList.toggle("chat-closed", !state.chatOpen);
   els.chatPanel.classList.toggle("closed", !state.chatOpen);
   els.chatButton.classList.toggle("active", state.chatOpen);
+  els.chatButton.setAttribute("aria-pressed", String(state.chatOpen));
+  els.chatButton.title = state.chatOpen ? "Fechar chat" : "Abrir chat";
+  els.chatButton.setAttribute("aria-label", state.chatOpen ? "Fechar chat" : "Abrir chat");
 }
 
 function renderMessage(message, previous) {

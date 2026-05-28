@@ -793,6 +793,10 @@ small,
   grid-template-columns: minmax(0, 1fr);
 }
 
+.workspace-body.chat-closed .main-stage {
+  display: grid;
+}
+
 .main-stage {
   display: grid;
   position: relative;
@@ -1170,7 +1174,19 @@ small,
 
   .workspace-body {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .workspace-body.chat-open {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .workspace-body.chat-open .main-stage {
+    display: none;
+  }
+
+  .workspace-body.chat-closed .chat-panel {
+    display: none;
   }
 
   .main-stage {
@@ -1178,9 +1194,12 @@ small,
   }
 
   .chat-panel {
+    display: grid;
     border-top: 1px solid #252b35;
     border-left: 0;
-    max-height: 42dvh;
+    height: 100%;
+    max-height: none;
+    padding-bottom: calc(var(--dock-height) + max(18px, env(safe-area-inset-bottom)));
   }
 
   .toast-stack {
@@ -1216,7 +1235,7 @@ small,
   }
 
   .chat-panel {
-    max-height: 46dvh;
+    max-height: none;
   }
 
   .chat-form {
