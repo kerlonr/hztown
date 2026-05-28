@@ -834,7 +834,7 @@ function syncSelfPanel() {
   els.muteButton.classList.toggle("inactive", state.livekitRoom && state.muted);
   els.micTestButton.classList.toggle("active", Boolean(state.micTest));
   els.cameraButton.classList.toggle("active", state.cameraOn);
-  els.cameraButton.classList.toggle("inactive", state.selfId && !state.cameraOn);
+  els.cameraButton.classList.toggle("inactive", state.livekitRoom && !state.cameraOn);
   els.screenButton.classList.toggle("active", state.screenOn);
   syncSkinPicker();
   syncChatPanel();
