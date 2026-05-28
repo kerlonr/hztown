@@ -1,6 +1,6 @@
-import { DEFAULT_SKINS } from "./config.js";
-import { state } from "./state.js";
-import { initials } from "./utils.js";
+import { DEFAULT_SKINS } from "../core/appConfig.js";
+import { state } from "../core/appState.js";
+import { initials } from "../shared/formattingValues.js";
 
 export function applyAvatar(element, user) {
   const avatar = user.avatar || "";

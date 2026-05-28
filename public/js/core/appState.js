@@ -1,4 +1,4 @@
-import { pickColor } from "./utils.js";
+import { pickColor } from "../shared/formattingValues.js";
 
 export const state = {
   selfId: null,

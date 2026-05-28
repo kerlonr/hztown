@@ -11,19 +11,27 @@ npm run dev
 
 Abra `http://localhost:3000` em duas abas ou dois navegadores, entre com nomes diferentes e clique em `Entrar na voz`.
 
+## Instalar como app
+
+O projeto e um PWA. Em producao com HTTPS, o navegador pode oferecer a opcao de instalar:
+
+- Chrome/Edge desktop: icone de instalar na barra de endereco ou menu `Instalar app`.
+- Android Chrome: menu do navegador > `Adicionar a tela inicial` ou `Instalar app`.
+- iPhone/iPad Safari: compartilhar > `Adicionar a Tela de Inicio`.
+
 ## Estrutura
 
 ```text
 server.js                 # Entrada HTTP, estaticos e bootstrap do Socket.IO
-server/                   # Rotas, sanitizacao, estado em memoria e eventos Socket.IO
+server/sanitizers.js        # Sanitizacao de ids, texto e avatares recebidos
+server/spaceStore.js        # Estado em memoria de usuarios e mensagens
+server/livekitTokenRoute.js # Rota que emite token LiveKit
+server/socketEvents.js      # Eventos Socket.IO de presenca, chat e sinalizacao
 public/app.js             # Orquestracao do cliente: eventos, LiveKit e render principal
-public/js/config.js       # Constantes de canais, midia e skins
-public/js/dom.js          # Referencias dos elementos da interface
-public/js/state.js        # Estado compartilhado do cliente
-public/js/avatar.js       # Skins, upload e renderizacao de avatar
-public/js/chat.js         # Render do chat e agrupamento de mensagens
-public/js/notifications.js # Toasts e notificacoes de entrada
-public/js/utils.js        # Helpers pequenos e puros
+public/js/core/           # Configuracao, estado e referencias DOM
+public/js/features/       # Funcionalidades de produto: chat e PWA
+public/js/ui/             # Renderizadores visuais: avatar, icones e toasts
+public/js/shared/         # Helpers pequenos e puros
 ```
 
 ## Configurar LiveKit

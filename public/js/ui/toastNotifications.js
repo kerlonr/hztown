@@ -1,6 +1,6 @@
-import { applyAvatar } from "./avatar.js";
-import { CHANNELS } from "./config.js";
-import { els } from "./dom.js";
+import { CHANNELS } from "../core/appConfig.js";
+import { els } from "../core/domElements.js";
+import { applyAvatar } from "./avatarRenderer.js";
 
 export function notifyUserJoined(user) {
   const channel = CHANNELS[user.channel]?.label || "espaco";

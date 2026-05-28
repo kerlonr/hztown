@@ -3,8 +3,8 @@ import {
   RoomEvent,
   Track
 } from "/vendor/livekit-client/livekit-client.esm.mjs";
-import { applyAvatar, fileToAvatarDataUrl } from "./js/avatar.js";
-import { renderChat, syncChatPanel } from "./js/chat.js";
+import { applyAvatar, fileToAvatarDataUrl } from "./js/ui/avatarRenderer.js";
+import { renderChat, syncChatPanel } from "./js/features/chatPanel.js";
 import {
   AUDIO_OPTIONS,
   CAMERA_OPTIONS,
@@ -12,16 +12,18 @@ import {
   MIC_TEST_TIMEOUT_MS,
   SCREEN_OPTIONS,
   SCREEN_SHARE_ENCODING
-} from "./js/config.js";
-import { els } from "./js/dom.js";
-import { hydrateStaticIcons, setIcon } from "./js/icons.js";
-import { notifyUserJoined } from "./js/notifications.js";
-import { state } from "./js/state.js";
-import { clamp } from "./js/utils.js";
+} from "./js/core/appConfig.js";
+import { els } from "./js/core/domElements.js";
+import { hydrateStaticIcons, setIcon } from "./js/ui/iconRenderer.js";
+import { notifyUserJoined } from "./js/ui/toastNotifications.js";
+import { registerServiceWorker } from "./js/features/pwaRegistration.js";
+import { state } from "./js/core/appState.js";
+import { clamp } from "./js/shared/formattingValues.js";
 
 const socket = io();
 
 hydrateStaticIcons();
+registerServiceWorker();
 
 if (typeof els.joinDialog.showModal === "function") {
   els.joinDialog.showModal();

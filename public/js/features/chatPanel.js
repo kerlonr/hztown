@@ -1,7 +1,7 @@
-import { applyAvatar } from "./avatar.js";
-import { els } from "./dom.js";
-import { state } from "./state.js";
-import { formatMessageTime } from "./utils.js";
+import { els } from "../core/domElements.js";
+import { state } from "../core/appState.js";
+import { applyAvatar } from "../ui/avatarRenderer.js";
+import { formatMessageTime } from "../shared/formattingValues.js";
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
 
