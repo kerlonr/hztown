@@ -37,7 +37,7 @@ els.joinForm.addEventListener("submit", () => {
   state.joined = true;
   syncSelfPanel();
   socket.emit("space:join", {
-    spaceId: "tec-hq",
+    spaceId: "projeto-gt",
     name,
     color: state.color,
     avatar: state.avatar,
@@ -125,12 +125,6 @@ document.addEventListener("click", (event) => {
   if (!els.moreMenu.classList.contains("open")) return;
   if (els.moreMenu.contains(event.target) || els.moreButton.contains(event.target)) return;
   closeMoreMenu();
-});
-
-els.channelButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    setChannel(button.dataset.channel);
-  });
 });
 
 els.floorPlan.addEventListener("keydown", (event) => {
@@ -723,7 +717,7 @@ function sourceLabel(source) {
 }
 
 function liveKitRoomName(channel) {
-  return `tec-hq-${channel}`;
+  return `projeto-gt-${channel}`;
 }
 
 function setChannel(channel) {
@@ -782,7 +776,6 @@ function closeMoreMenu() {
 
 function render() {
   renderChannels();
-  renderOnlineList();
   renderVoiceStrip();
   renderMap();
   renderChat();
@@ -790,37 +783,12 @@ function render() {
 }
 
 function renderChannels() {
-  els.channelButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.channel === state.channel);
-  });
-
   const channel = CHANNELS[state.channel];
   els.voiceTitle.textContent = channel?.label || "Canal";
   els.voiceSubtitle.textContent = state.livekitRoom
     ? "Audio, camera e tela estao trafegando pelo LiveKit."
     : "Entre para conversar com quem estiver no mesmo canal.";
   els.chatChannelLabel.textContent = channel?.label || "Canal";
-}
-
-function renderOnlineList() {
-  els.onlineList.innerHTML = "";
-  for (const user of state.users.values()) {
-    const row = document.createElement("div");
-    row.className = "online-row";
-    const avatar = document.createElement("div");
-    avatar.className = "avatar";
-    avatar.dataset.identity = user.id;
-    applyAvatar(avatar, user);
-
-    const name = document.createElement("strong");
-    name.textContent = user.name;
-
-    const voiceDot = document.createElement("span");
-    voiceDot.className = `voice-dot ${user.inVoice ? "active" : ""}`;
-
-    row.append(avatar, name, voiceDot);
-    els.onlineList.append(row);
-  }
 }
 
 function renderVoiceStrip() {
@@ -873,19 +841,6 @@ function renderMap() {
 }
 
 function syncSelfPanel() {
-  const name = state.name || "Convidado";
-  els.selfName.textContent = name;
-  if (state.selfId) {
-    els.selfAvatar.dataset.identity = state.selfId;
-  }
-  applyAvatar(els.selfAvatar, { name, color: state.color, avatar: state.avatar });
-  els.selfStatus.textContent = state.livekitRoom
-    ? state.muted
-      ? "em chamada, mutado"
-      : state.cameraOn
-        ? "em chamada, camera ativa"
-        : "em chamada"
-    : "fora da chamada";
   const voiceLabel = state.livekitRoom ? "Sair da voz" : "Entrar na voz";
   els.voiceButton.setAttribute("aria-label", voiceLabel);
   els.voiceButton.title = voiceLabel;

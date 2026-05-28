@@ -9,7 +9,7 @@ export function registerSocketHandlers(io, store) {
     let currentSpaceId = null;
 
     socket.on("space:join", (profile) => {
-      currentSpaceId = profile.spaceId || "tec-hq";
+      currentSpaceId = profile.spaceId || "projeto-gt";
       const space = store.getSpace(currentSpaceId);
       const user = {
         id: socket.id,
