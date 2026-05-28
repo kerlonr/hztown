@@ -59,6 +59,22 @@ const ICONS = {
     '<circle cx="12" cy="12" r="1"/>',
     '<circle cx="19" cy="12" r="1"/>',
     '<circle cx="5" cy="12" r="1"/>'
+  ],
+  maximize: [
+    '<path d="M8 3H5a2 2 0 0 0-2 2v3"/>',
+    '<path d="M21 8V5a2 2 0 0 0-2-2h-3"/>',
+    '<path d="M3 16v3a2 2 0 0 0 2 2h3"/>',
+    '<path d="M16 21h3a2 2 0 0 0 2-2v-3"/>'
+  ],
+  pin: [
+    '<path d="m15 4 5 5-4 4v6l-2 2-4-4-5-5 2-2h6Z"/>',
+    '<path d="m9 15-6 6"/>'
+  ],
+  "pin-off": [
+    '<path d="m2 2 20 20"/>',
+    '<path d="m15 4 5 5-4 4v1"/>',
+    '<path d="M14 21 4 11l3-3h2"/>',
+    '<path d="m9 15-6 6"/>'
   ]
 };
 

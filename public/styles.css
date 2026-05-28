@@ -493,11 +493,11 @@ small,
   display: grid;
   height: 100%;
   min-height: 128px;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(220px, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-auto-rows: minmax(128px, 1fr);
   gap: 12px;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
   padding-bottom: 8px;
   scrollbar-color: var(--line) transparent;
 }
@@ -529,11 +529,30 @@ small,
 .media-tile {
   position: relative;
   min-width: 220px;
+  min-height: 128px;
   overflow: hidden;
   border: 1px solid rgba(147, 197, 253, 0.24);
   border-radius: 8px;
   background: #070a0f;
   box-shadow: var(--shadow);
+}
+
+.media-tile.pinned {
+  grid-column: 1 / -1;
+  min-height: 220px;
+  border-color: rgba(110, 231, 183, 0.6);
+}
+
+.media-tile:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  border: 0;
+  border-radius: 0;
+}
+
+.media-tile:fullscreen .media-video {
+  height: 100%;
+  object-fit: contain;
 }
 
 .media-tile.local {
@@ -553,8 +572,57 @@ small,
   grid-column: span 2;
 }
 
+.media-tile[data-source="screen_share"].pinned,
+.media-tile[data-source="screen_share"]:only-child {
+  grid-column: 1 / -1;
+}
+
 .media-tile[data-source="screen_share"] .media-video {
   object-fit: contain;
+}
+
+.media-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.media-tile:hover .media-actions,
+.media-tile:focus-within .media-actions,
+.media-tile.pinned .media-actions {
+  opacity: 1;
+}
+
+.media-action {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(7, 10, 15, 0.72);
+  color: var(--text);
+  backdrop-filter: blur(10px);
+}
+
+.media-action:hover {
+  color: var(--accent);
+  border-color: rgba(110, 231, 183, 0.34);
+}
+
+.media-action .tool-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.media-action .tool-icon svg {
+  width: 17px;
+  height: 17px;
 }
 
 .media-caption {
@@ -1219,7 +1287,25 @@ small,
   }
 
   .media-grid {
-    grid-auto-columns: minmax(190px, 82vw);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-auto-rows: minmax(112px, 1fr);
+  }
+
+  .media-tile {
+    min-width: 0;
+  }
+
+  .media-tile.pinned {
+    min-height: 172px;
+  }
+
+  .media-actions {
+    opacity: 1;
+  }
+
+  .media-action {
+    width: 38px;
+    height: 38px;
   }
 
   .floor-wrapper {
