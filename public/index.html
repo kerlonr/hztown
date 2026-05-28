@@ -117,26 +117,32 @@
                 <span id="muteIcon" class="tool-icon" data-icon="mic"></span>
                 <span class="sr-only">Microfone</span>
               </button>
-              <button id="micTestButton" class="tool-button" aria-label="Testar microfone" title="Testar microfone" type="button">
-                <span class="tool-icon" data-icon="gauge"></span>
-                <span class="sr-only">Teste mic</span>
-              </button>
               <button id="cameraButton" class="tool-button" aria-label="Abrir camera" title="Abrir camera" disabled>
                 <span id="cameraIcon" class="tool-icon" data-icon="video"></span>
                 <span class="sr-only">Camera</span>
-              </button>
-              <button id="screenButton" class="tool-button" aria-label="Transmitir tela" title="Transmitir tela" disabled>
-                <span id="screenIcon" class="tool-icon" data-icon="monitor"></span>
-                <span class="sr-only">Tela</span>
-              </button>
-              <button id="chatButton" class="tool-button active" aria-label="Abrir chat" title="Abrir chat" type="button">
-                <span class="tool-icon" data-icon="message"></span>
-                <span class="sr-only">Chat</span>
               </button>
               <button id="voiceButton" class="primary-button call-button" aria-label="Entrar na voz" title="Entrar na voz">
                 <span id="voiceIcon" class="tool-icon" data-icon="phone"></span>
                 <span class="sr-only">Entrar na voz</span>
               </button>
+              <button id="chatButton" class="tool-button active" aria-label="Abrir chat" title="Abrir chat" type="button">
+                <span class="tool-icon" data-icon="message"></span>
+                <span class="sr-only">Chat</span>
+              </button>
+              <button id="moreButton" class="tool-button more-button" aria-label="Mais opcoes" title="Mais opcoes" type="button" aria-expanded="false">
+                <span class="tool-icon" data-icon="more"></span>
+                <span class="sr-only">Mais opcoes</span>
+              </button>
+              <div id="moreMenu" class="more-menu">
+                <button id="screenButton" class="tool-button" aria-label="Transmitir tela" title="Transmitir tela" disabled>
+                  <span id="screenIcon" class="tool-icon" data-icon="monitor"></span>
+                  <span class="tool-label">Tela</span>
+                </button>
+                <button id="micTestButton" class="tool-button" aria-label="Testar microfone" title="Testar microfone" type="button">
+                  <span class="tool-icon" data-icon="gauge"></span>
+                  <span class="tool-label">Teste mic</span>
+                </button>
+              </div>
             </div>
           </div>
 

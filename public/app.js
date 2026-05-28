@@ -64,6 +64,7 @@ els.micTestButton.addEventListener("click", () => {
   } else {
     startMicTest();
   }
+  closeMoreMenu();
 });
 
 els.cameraButton.addEventListener("click", () => {
@@ -72,11 +73,18 @@ els.cameraButton.addEventListener("click", () => {
 
 els.screenButton.addEventListener("click", () => {
   toggleScreenShare();
+  closeMoreMenu();
 });
 
 els.chatButton.addEventListener("click", () => {
   state.chatOpen = !state.chatOpen;
   syncChatPanel();
+  closeMoreMenu();
+});
+
+els.moreButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleMoreMenu();
 });
 
 els.chatForm.addEventListener("submit", (event) => {
@@ -109,6 +117,12 @@ els.avatarInput.addEventListener("change", async () => {
   } finally {
     els.avatarInput.value = "";
   }
+});
+
+document.addEventListener("click", (event) => {
+  if (!els.moreMenu.classList.contains("open")) return;
+  if (els.moreMenu.contains(event.target) || els.moreButton.contains(event.target)) return;
+  closeMoreMenu();
 });
 
 els.channelButtons.forEach((button) => {
@@ -683,6 +697,19 @@ function setBusy(busy, label = "") {
 
 function setConnectionStatus(label) {
   els.connectionStatus.textContent = label;
+}
+
+function toggleMoreMenu() {
+  const open = !els.moreMenu.classList.contains("open");
+  els.moreMenu.classList.toggle("open", open);
+  els.moreButton.classList.toggle("active", open);
+  els.moreButton.setAttribute("aria-expanded", String(open));
+}
+
+function closeMoreMenu() {
+  els.moreMenu.classList.remove("open");
+  els.moreButton.classList.remove("active");
+  els.moreButton.setAttribute("aria-expanded", "false");
 }
 
 function render() {

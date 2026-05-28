@@ -16,6 +16,8 @@ export const els = {
   screenButton: document.querySelector("#screenButton"),
   screenIcon: document.querySelector("#screenIcon"),
   chatButton: document.querySelector("#chatButton"),
+  moreButton: document.querySelector("#moreButton"),
+  moreMenu: document.querySelector("#moreMenu"),
   connectionStatus: document.querySelector("#connectionStatus"),
   micMeter: document.querySelector("#micMeter"),
   micMeterBar: document.querySelector("#micMeterBar"),

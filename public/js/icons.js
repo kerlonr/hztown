@@ -54,6 +54,11 @@ const ICONS = {
   send: [
     '<path d="m22 2-7 20-4-9-9-4Z"/>',
     '<path d="M22 2 11 13"/>'
+  ],
+  more: [
+    '<circle cx="12" cy="12" r="1"/>',
+    '<circle cx="19" cy="12" r="1"/>',
+    '<circle cx="5" cy="12" r="1"/>'
   ]
 };
 
