@@ -95,6 +95,7 @@ const els = {
   avatarsLayer: document.querySelector("#avatarsLayer"),
   proximityZone: document.querySelector("#proximityZone"),
   audioMount: document.querySelector("#audioMount"),
+  toastStack: document.querySelector("#toastStack"),
   chatPanel: document.querySelector("#chatPanel"),
   chatMessages: document.querySelector("#chatMessages"),
   chatForm: document.querySelector("#chatForm"),
@@ -243,6 +244,7 @@ socket.on("space:ready", ({ selfId, users, messages = [] }) => {
 socket.on("presence:joined", (user) => {
   state.users.set(user.id, user);
   render();
+  notifyUserJoined(user);
 });
 
 socket.on("presence:updated", (user) => {
@@ -978,6 +980,46 @@ function syncSpeakingIndicators() {
   document.querySelectorAll(".avatar[data-identity], .map-avatar[data-identity]").forEach((avatar) => {
     avatar.classList.toggle("speaking", state.speakingIds.has(avatar.dataset.identity));
   });
+}
+
+function notifyUserJoined(user) {
+  const channel = CHANNELS[user.channel]?.label || "espaco";
+  showToast({
+    title: `${user.name} entrou`,
+    body: `Entrou em ${channel}`,
+    user
+  });
+
+  if (document.visibilityState === "hidden" && "Notification" in window && Notification.permission === "granted") {
+    new Notification(`${user.name} entrou`, {
+      body: `Entrou em ${channel}`
+    });
+  }
+}
+
+function showToast({ title, body, user }) {
+  const toast = document.createElement("div");
+  toast.className = "toast";
+
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  applyAvatar(avatar, user);
+
+  const content = document.createElement("div");
+  const heading = document.createElement("strong");
+  heading.textContent = title;
+
+  const description = document.createElement("small");
+  description.textContent = body;
+
+  content.append(heading, description);
+  toast.append(avatar, content);
+  els.toastStack.append(toast);
+
+  window.setTimeout(() => {
+    toast.classList.add("leaving");
+    window.setTimeout(() => toast.remove(), 180);
+  }, 4200);
 }
 
 async function startMicTest() {
