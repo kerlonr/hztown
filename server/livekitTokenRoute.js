@@ -12,7 +12,7 @@ export function registerLiveKitTokenRoute(app, config) {
       return;
     }
 
-    const room = sanitizeLiveKitId(req.query.room, "tec-hq-team");
+    const room = sanitizeLiveKitId(req.query.room, "projeto-gt-team");
     const identity = sanitizeLiveKitId(req.query.identity, `guest-${randomUUID()}`);
     const name = String(req.query.name || "Convidado").trim().slice(0, 28);
 
