@@ -113,27 +113,30 @@
             </section>
 
             <div class="topbar-actions">
-              <button id="muteButton" class="tool-button" title="Mutar microfone" disabled>
-                <span id="muteIcon" class="tool-icon">Mic</span>
-                <span>Microfone</span>
+              <button id="muteButton" class="tool-button" aria-label="Mutar microfone" title="Mutar microfone" disabled>
+                <span id="muteIcon" class="tool-icon" data-icon="mic"></span>
+                <span class="sr-only">Microfone</span>
               </button>
-              <button id="micTestButton" class="tool-button" title="Testar microfone" type="button">
-                <span class="tool-icon">Test</span>
-                <span>Teste mic</span>
+              <button id="micTestButton" class="tool-button" aria-label="Testar microfone" title="Testar microfone" type="button">
+                <span class="tool-icon" data-icon="gauge"></span>
+                <span class="sr-only">Teste mic</span>
               </button>
-              <button id="cameraButton" class="tool-button" title="Abrir camera" disabled>
-                <span id="cameraIcon" class="tool-icon">Cam</span>
-                <span>Camera</span>
+              <button id="cameraButton" class="tool-button" aria-label="Abrir camera" title="Abrir camera" disabled>
+                <span id="cameraIcon" class="tool-icon" data-icon="video"></span>
+                <span class="sr-only">Camera</span>
               </button>
-              <button id="screenButton" class="tool-button" title="Transmitir tela" disabled>
-                <span id="screenIcon" class="tool-icon">Tela</span>
-                <span>Tela</span>
+              <button id="screenButton" class="tool-button" aria-label="Transmitir tela" title="Transmitir tela" disabled>
+                <span id="screenIcon" class="tool-icon" data-icon="monitor"></span>
+                <span class="sr-only">Tela</span>
               </button>
-              <button id="chatButton" class="tool-button active" title="Abrir chat" type="button">
-                <span class="tool-icon">Chat</span>
-                <span>Chat</span>
+              <button id="chatButton" class="tool-button active" aria-label="Abrir chat" title="Abrir chat" type="button">
+                <span class="tool-icon" data-icon="message"></span>
+                <span class="sr-only">Chat</span>
               </button>
-              <button id="voiceButton" class="primary-button">Entrar na voz</button>
+              <button id="voiceButton" class="primary-button call-button" aria-label="Entrar na voz" title="Entrar na voz">
+                <span id="voiceIcon" class="tool-icon" data-icon="phone"></span>
+                <span class="sr-only">Entrar na voz</span>
+              </button>
             </div>
           </div>
 
@@ -147,7 +150,10 @@
             <div id="chatMessages" class="chat-messages"></div>
             <form id="chatForm" class="chat-form">
               <input id="chatInput" maxlength="800" autocomplete="off" placeholder="Mensagem" />
-              <button class="primary-button" type="submit">Enviar</button>
+              <button class="primary-button" type="submit" aria-label="Enviar mensagem" title="Enviar mensagem">
+                <span class="tool-icon" data-icon="send"></span>
+                <span class="sr-only">Enviar</span>
+              </button>
             </form>
           </aside>
         </section>

@@ -1,110 +1,27 @@
 import {
   Room,
   RoomEvent,
-  ScreenSharePresets,
-  Track,
-  VideoPresets
+  Track
 } from "/vendor/livekit-client/livekit-client.esm.mjs";
+import { applyAvatar, fileToAvatarDataUrl } from "./js/avatar.js";
+import { renderChat, syncChatPanel } from "./js/chat.js";
+import {
+  AUDIO_OPTIONS,
+  CAMERA_OPTIONS,
+  CHANNELS,
+  MIC_TEST_TIMEOUT_MS,
+  SCREEN_OPTIONS,
+  SCREEN_SHARE_ENCODING
+} from "./js/config.js";
+import { els } from "./js/dom.js";
+import { hydrateStaticIcons, setIcon } from "./js/icons.js";
+import { notifyUserJoined } from "./js/notifications.js";
+import { state } from "./js/state.js";
+import { clamp } from "./js/utils.js";
 
 const socket = io();
 
-const CHANNELS = {
-  team: { label: "Team", x: 30, y: 42 },
-  daily: { label: "Daily", x: 70, y: 42 },
-  focus: { label: "Focus", x: 70, y: 78 }
-};
-
-const DEFAULT_SKINS = {
-  "default:mint": "linear-gradient(135deg, #6ee7b7, #155e75)",
-  "default:blue": "linear-gradient(135deg, #93c5fd, #1d4ed8)",
-  "default:rose": "linear-gradient(135deg, #fda4af, #be123c)",
-  "default:gold": "linear-gradient(135deg, #fcd34d, #b45309)"
-};
-
-const AUDIO_OPTIONS = {
-  echoCancellation: true,
-  noiseSuppression: true,
-  autoGainControl: true
-};
-
-const CAMERA_OPTIONS = {
-  resolution: VideoPresets.h540.resolution,
-  frameRate: 24
-};
-
-const SCREEN_OPTIONS = {
-  audio: true,
-  video: true,
-  resolution: ScreenSharePresets.h1080fps15.resolution,
-  contentHint: "detail",
-  selfBrowserSurface: "exclude",
-  surfaceSwitching: "include",
-  systemAudio: "include"
-};
-
-const MIC_TEST_TIMEOUT_MS = 12000;
-
-const state = {
-  selfId: null,
-  name: "",
-  color: pickColor(),
-  avatar: localStorage.getItem("gt.avatar") || "default:mint",
-  channel: "team",
-  users: new Map(),
-  messages: [],
-  speakingIds: new Set(),
-  chatOpen: true,
-  livekitRoom: null,
-  livekitRoomName: null,
-  mediaElements: new Map(),
-  muted: false,
-  cameraOn: false,
-  screenOn: false,
-  joined: false,
-  busy: false,
-  micTest: null
-};
-
-const els = {
-  joinDialog: document.querySelector("#joinDialog"),
-  joinForm: document.querySelector("#joinForm"),
-  nameInput: document.querySelector("#nameInput"),
-  selfAvatar: document.querySelector("#selfAvatar"),
-  selfName: document.querySelector("#selfName"),
-  selfStatus: document.querySelector("#selfStatus"),
-  onlineList: document.querySelector("#onlineList"),
-  voiceButton: document.querySelector("#voiceButton"),
-  muteButton: document.querySelector("#muteButton"),
-  muteIcon: document.querySelector("#muteIcon"),
-  micTestButton: document.querySelector("#micTestButton"),
-  cameraButton: document.querySelector("#cameraButton"),
-  cameraIcon: document.querySelector("#cameraIcon"),
-  screenButton: document.querySelector("#screenButton"),
-  screenIcon: document.querySelector("#screenIcon"),
-  chatButton: document.querySelector("#chatButton"),
-  connectionStatus: document.querySelector("#connectionStatus"),
-  micMeter: document.querySelector("#micMeter"),
-  micMeterBar: document.querySelector("#micMeterBar"),
-  micStatus: document.querySelector("#micStatus"),
-  voiceTitle: document.querySelector("#voiceTitle"),
-  voiceSubtitle: document.querySelector("#voiceSubtitle"),
-  voiceTiles: document.querySelector("#voiceTiles"),
-  workspaceBody: document.querySelector(".workspace-body"),
-  mediaGrid: document.querySelector("#mediaGrid"),
-  floorPlan: document.querySelector("#floorPlan"),
-  avatarsLayer: document.querySelector("#avatarsLayer"),
-  proximityZone: document.querySelector("#proximityZone"),
-  audioMount: document.querySelector("#audioMount"),
-  toastStack: document.querySelector("#toastStack"),
-  chatPanel: document.querySelector("#chatPanel"),
-  chatMessages: document.querySelector("#chatMessages"),
-  chatForm: document.querySelector("#chatForm"),
-  chatInput: document.querySelector("#chatInput"),
-  chatChannelLabel: document.querySelector("#chatChannelLabel"),
-  avatarInput: document.querySelector("#avatarInput"),
-  skinButtons: Array.from(document.querySelectorAll(".skin-option")),
-  channelButtons: Array.from(document.querySelectorAll(".channel"))
-};
+hydrateStaticIcons();
 
 if (typeof els.joinDialog.showModal === "function") {
   els.joinDialog.showModal();
@@ -363,7 +280,7 @@ async function toggleScreenShare() {
       enableScreen,
       SCREEN_OPTIONS,
       {
-        screenShareEncoding: ScreenSharePresets.h1080fps15.encoding,
+        screenShareEncoding: SCREEN_SHARE_ENCODING,
         dtx: true,
         red: true
       }
@@ -874,15 +791,18 @@ function syncSelfPanel() {
         ? "em chamada, camera ativa"
         : "em chamada"
     : "fora da chamada";
-  els.voiceButton.textContent = state.livekitRoom ? "Sair da voz" : "Entrar na voz";
+  const voiceLabel = state.livekitRoom ? "Sair da voz" : "Entrar na voz";
+  els.voiceButton.setAttribute("aria-label", voiceLabel);
+  els.voiceButton.title = voiceLabel;
   els.voiceButton.classList.toggle("live", Boolean(state.livekitRoom));
   els.muteButton.disabled = state.busy || !state.livekitRoom;
   els.micTestButton.disabled = state.busy;
   els.cameraButton.disabled = state.busy || !state.selfId;
   els.screenButton.disabled = state.busy || !state.selfId;
-  els.muteIcon.textContent = state.muted ? "Off" : "Mic";
-  els.cameraIcon.textContent = state.cameraOn ? "Off" : "Cam";
-  els.screenIcon.textContent = state.screenOn ? "Stop" : "Tela";
+  setIcon(els.voiceIcon, state.livekitRoom ? "phone-off" : "phone");
+  setIcon(els.muteIcon, state.muted ? "mic-off" : "mic");
+  setIcon(els.cameraIcon, state.cameraOn ? "video-off" : "video");
+  setIcon(els.screenIcon, state.screenOn ? "monitor-off" : "monitor");
   els.muteButton.classList.toggle("active", state.livekitRoom && !state.muted);
   els.micTestButton.classList.toggle("active", Boolean(state.micTest));
   els.cameraButton.classList.toggle("active", state.cameraOn);
@@ -892,134 +812,10 @@ function syncSelfPanel() {
   syncSpeakingIndicators();
 }
 
-function renderChat(forceScroll = false) {
-  const messages = state.messages.filter((message) => message.channel === state.channel);
-  const shouldStick =
-    forceScroll ||
-    els.chatMessages.scrollTop + els.chatMessages.clientHeight >= els.chatMessages.scrollHeight - 48;
-
-  els.chatMessages.innerHTML = "";
-
-  if (messages.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "chat-empty";
-    empty.textContent = "Sem mensagens neste canal.";
-    els.chatMessages.append(empty);
-    return;
-  }
-
-  for (let index = 0; index < messages.length; index += 1) {
-    const message = messages[index];
-    const previous = messages[index - 1];
-    const isOwn = message.userId === state.selfId;
-    const isGrouped =
-      previous &&
-      previous.userId === message.userId &&
-      message.createdAt - previous.createdAt < 5 * 60 * 1000;
-
-    const row = document.createElement("article");
-    row.className = `chat-message ${isOwn ? "own" : ""} ${isGrouped ? "grouped" : ""}`;
-
-    if (!isOwn) {
-      if (isGrouped) {
-        const spacer = document.createElement("div");
-        spacer.className = "chat-avatar-spacer";
-        row.append(spacer);
-      } else {
-        const avatar = document.createElement("div");
-        avatar.className = "avatar";
-        applyAvatar(avatar, message);
-        row.append(avatar);
-      }
-    }
-
-    const body = document.createElement("div");
-    body.className = "chat-body";
-
-    if (!isOwn && !isGrouped) {
-      const meta = document.createElement("div");
-      meta.className = "chat-meta";
-
-      const name = document.createElement("strong");
-      name.textContent = message.name;
-      meta.append(name);
-      body.append(meta);
-    }
-
-    const bubble = document.createElement("div");
-    bubble.className = "chat-bubble";
-
-    const text = document.createElement("p");
-    text.textContent = message.text;
-
-    const time = document.createElement("time");
-    time.dateTime = new Date(message.createdAt).toISOString();
-    time.textContent = new Date(message.createdAt).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-
-    bubble.append(text, time);
-    body.append(bubble);
-    row.append(body);
-    els.chatMessages.append(row);
-  }
-
-  if (shouldStick) {
-    els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
-  }
-}
-
-function syncChatPanel() {
-  els.workspaceBody.classList.toggle("chat-closed", !state.chatOpen);
-  els.chatPanel.classList.toggle("closed", !state.chatOpen);
-  els.chatButton.classList.toggle("active", state.chatOpen);
-}
-
 function syncSpeakingIndicators() {
   document.querySelectorAll(".avatar[data-identity], .map-avatar[data-identity]").forEach((avatar) => {
     avatar.classList.toggle("speaking", state.speakingIds.has(avatar.dataset.identity));
   });
-}
-
-function notifyUserJoined(user) {
-  const channel = CHANNELS[user.channel]?.label || "espaco";
-  showToast({
-    title: `${user.name} entrou`,
-    body: `Entrou em ${channel}`,
-    user
-  });
-
-  if (document.visibilityState === "hidden" && "Notification" in window && Notification.permission === "granted") {
-    new Notification(`${user.name} entrou`, {
-      body: `Entrou em ${channel}`
-    });
-  }
-}
-
-function showToast({ title, body, user }) {
-  const toast = document.createElement("div");
-  toast.className = "toast";
-
-  const avatar = document.createElement("div");
-  avatar.className = "avatar";
-  applyAvatar(avatar, user);
-
-  const content = document.createElement("div");
-  const heading = document.createElement("strong");
-  heading.textContent = title;
-
-  const description = document.createElement("small");
-  description.textContent = body;
-
-  content.append(heading, description);
-  toast.append(avatar, content);
-  els.toastStack.append(toast);
-
-  window.setTimeout(() => {
-    toast.classList.add("leaving");
-    window.setTimeout(() => toast.remove(), 180);
-  }, 4200);
 }
 
 async function startMicTest() {
@@ -1131,89 +927,5 @@ function setAvatar(avatar) {
 function syncSkinPicker() {
   els.skinButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.avatar === state.avatar);
-  });
-}
-
-function applyAvatar(element, user) {
-  const avatar = user.avatar || "";
-  element.style.background = "";
-  element.style.backgroundColor = user.color || state.color;
-  element.style.backgroundImage = "";
-  element.style.backgroundSize = "";
-  element.style.backgroundPosition = "";
-  element.textContent = initials(user.name || "G");
-
-  if (DEFAULT_SKINS[avatar]) {
-    element.style.backgroundImage = DEFAULT_SKINS[avatar];
-    return;
-  }
-
-  if (avatar.startsWith("data:image/")) {
-    element.style.backgroundImage = `url("${avatar}")`;
-    element.style.backgroundSize = "cover";
-    element.style.backgroundPosition = "center";
-    element.textContent = "";
-  }
-}
-
-function fileToAvatarDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith("image/")) {
-      reject(new Error("Escolha uma imagem PNG, JPG ou WEBP."));
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Nao foi possivel ler a imagem."));
-    reader.onload = () => {
-      const image = new Image();
-      image.onerror = () => reject(new Error("Nao foi possivel processar a imagem."));
-      image.onload = () => {
-        const size = 160;
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-        const sourceSize = Math.min(image.width, image.height);
-        const sourceX = (image.width - sourceSize) / 2;
-        const sourceY = (image.height - sourceSize) / 2;
-
-        canvas.width = size;
-        canvas.height = size;
-        context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
-        resolve(canvas.toDataURL("image/webp", 0.82));
-      };
-      image.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-function pickColor() {
-  const colors = ["#6ee7b7", "#93c5fd", "#fda4af", "#fcd34d", "#c4b5fd", "#67e8f9"];
-  return colors[Math.floor(Math.random() * colors.length)];
-}
-
-function initials(name) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || "")
-    .join("");
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function escapeHtml(value) {
-  return value.replace(/[&<>"']/g, (char) => {
-    const entities = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    };
-    return entities[char];
   });
 }

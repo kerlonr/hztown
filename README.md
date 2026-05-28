@@ -11,6 +11,21 @@ npm run dev
 
 Abra `http://localhost:3000` em duas abas ou dois navegadores, entre com nomes diferentes e clique em `Entrar na voz`.
 
+## Estrutura
+
+```text
+server.js                 # Entrada HTTP, estaticos e bootstrap do Socket.IO
+server/                   # Rotas, sanitizacao, estado em memoria e eventos Socket.IO
+public/app.js             # Orquestracao do cliente: eventos, LiveKit e render principal
+public/js/config.js       # Constantes de canais, midia e skins
+public/js/dom.js          # Referencias dos elementos da interface
+public/js/state.js        # Estado compartilhado do cliente
+public/js/avatar.js       # Skins, upload e renderizacao de avatar
+public/js/chat.js         # Render do chat e agrupamento de mensagens
+public/js/notifications.js # Toasts e notificacoes de entrada
+public/js/utils.js        # Helpers pequenos e puros
+```
+
 ## Configurar LiveKit
 
 O backend gera tokens JWT de sala usando as credenciais do seu servidor LiveKit. Antes de rodar, defina:
