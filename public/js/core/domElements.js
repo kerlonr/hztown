@@ -16,6 +16,7 @@ export const els = {
   screenButton: document.querySelector("#screenButton"),
   screenIcon: document.querySelector("#screenIcon"),
   chatButton: document.querySelector("#chatButton"),
+  settingsButton: document.querySelector("#settingsButton"),
   moreButton: document.querySelector("#moreButton"),
   moreMenu: document.querySelector("#moreMenu"),
   connectionStatus: document.querySelector("#connectionStatus"),
@@ -38,6 +39,18 @@ export const els = {
   chatInput: document.querySelector("#chatInput"),
   chatChannelLabel: document.querySelector("#chatChannelLabel"),
   avatarInput: document.querySelector("#avatarInput"),
-  skinButtons: Array.from(document.querySelectorAll(".skin-option")),
-  channelButtons: Array.from(document.querySelectorAll(".channel"))
+  skinButtons: Array.from(document.querySelectorAll("#skinPicker .skin-option")),
+  channelButtons: Array.from(document.querySelectorAll(".channel")),
+  settingsDialog: document.querySelector("#settingsDialog"),
+  settingsForm: document.querySelector("#settingsForm"),
+  settingsClose: document.querySelector("#settingsClose"),
+  settingsName: document.querySelector("#settingsName"),
+  settingsSkinButtons: Array.from(document.querySelectorAll("#settingsSkinPicker .skin-option")),
+  settingsAvatarInput: document.querySelector("#settingsAvatarInput"),
+  micSelect: document.querySelector("#micSelect"),
+  cameraSelect: document.querySelector("#cameraSelect"),
+  speakerSelect: document.querySelector("#speakerSelect"),
+  refreshDevices: document.querySelector("#refreshDevices"),
+  qualitySelect: document.querySelector("#qualitySelect"),
+  mirrorToggle: document.querySelector("#mirrorToggle")
 };

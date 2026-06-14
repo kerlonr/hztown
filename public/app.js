@@ -6,24 +6,47 @@ import {
 import { applyAvatar, fileToAvatarDataUrl } from "./js/ui/avatarRenderer.js";
 import { renderChat, syncChatPanel } from "./js/features/chatPanel.js";
 import {
-  AUDIO_OPTIONS,
-  CAMERA_OPTIONS,
   CHANNELS,
   MIC_TEST_TIMEOUT_MS,
   SCREEN_OPTIONS,
-  SCREEN_SHARE_ENCODING
+  SCREEN_SHARE_ENCODING,
+  audioOptions,
+  cameraOptions
 } from "./js/core/appConfig.js";
 import { els } from "./js/core/domElements.js";
 import { hydrateStaticIcons, setIcon } from "./js/ui/iconRenderer.js";
 import { notifyUserJoined } from "./js/ui/toastNotifications.js";
 import { registerServiceWorker } from "./js/features/pwaRegistration.js";
+import { initSettingsPanel, openSettings } from "./js/features/settingsPanel.js";
 import { state } from "./js/core/appState.js";
 import { clamp } from "./js/shared/formattingValues.js";
+
+// Opcoes de captura que respeitam o dispositivo e a qualidade escolhidos nas configuracoes.
+function currentAudioOptions() {
+  return audioOptions(state.devices.audioInput);
+}
+
+function currentCameraOptions() {
+  return cameraOptions(state.devices.quality, state.devices.videoInput);
+}
 
 const socket = io();
 
 hydrateStaticIcons();
 registerServiceWorker();
+
+initSettingsPanel({
+  onName: applyName,
+  onAvatar: setAvatar,
+  onAvatarFile: applyAvatarFile,
+  onDeviceChange: applyDeviceChange,
+  onQualityChange: applyQualityChange,
+  onMirrorChange: applyMirror
+});
+
+if (state.name) {
+  els.nameInput.value = state.name;
+}
 
 if (typeof els.joinDialog.showModal === "function") {
   els.joinDialog.showModal();
@@ -35,6 +58,7 @@ els.joinForm.addEventListener("submit", () => {
   const name = els.nameInput.value.trim() || "Convidado";
   state.name = name;
   state.joined = true;
+  localStorage.setItem("gt.name", name);
   syncSelfPanel();
   socket.emit("space:join", {
     spaceId: "tec-hq",
@@ -217,7 +241,7 @@ async function joinVoice() {
   try {
     const room = await connectLiveKitRoom();
     state.muted = false;
-    await room.localParticipant.setMicrophoneEnabled(true, AUDIO_OPTIONS);
+    await room.localParticipant.setMicrophoneEnabled(true, currentAudioOptions());
     socket.emit("presence:update", { inVoice: true, muted: false, channel: state.channel });
     syncSelfPanel();
     render();
@@ -248,7 +272,7 @@ async function toggleMute() {
   const nextMuted = !state.muted;
   setBusy(true, nextMuted ? "Mutando..." : "Abrindo microfone...");
   try {
-    await state.livekitRoom.localParticipant.setMicrophoneEnabled(!nextMuted, AUDIO_OPTIONS);
+    await state.livekitRoom.localParticipant.setMicrophoneEnabled(!nextMuted, currentAudioOptions());
     state.muted = nextMuted;
     socket.emit("presence:update", { muted: state.muted });
     syncSelfPanel();
@@ -270,7 +294,7 @@ async function toggleCamera() {
   const enableCamera = !state.cameraOn;
   setBusy(true, enableCamera ? "Abrindo camera..." : "Fechando camera...");
   try {
-    await state.livekitRoom.localParticipant.setCameraEnabled(enableCamera, CAMERA_OPTIONS);
+    await state.livekitRoom.localParticipant.setCameraEnabled(enableCamera, currentCameraOptions());
     state.cameraOn = enableCamera;
     syncSelfPanel();
     renderMediaEmptyState();
@@ -330,8 +354,8 @@ async function connectLiveKitRoom() {
     adaptiveStream: true,
     dynacast: true,
     disconnectOnPageLeave: true,
-    audioCaptureDefaults: AUDIO_OPTIONS,
-    videoCaptureDefaults: CAMERA_OPTIONS,
+    audioCaptureDefaults: currentAudioOptions(),
+    videoCaptureDefaults: currentCameraOptions(),
     publishDefaults: {
       videoCodec: "vp8",
       simulcast: true,
@@ -372,9 +396,9 @@ async function switchLiveKitRoom() {
     state.muted = keepMuted;
 
     const room = await connectLiveKitRoom();
-    await room.localParticipant.setMicrophoneEnabled(!keepMuted, AUDIO_OPTIONS);
+    await room.localParticipant.setMicrophoneEnabled(!keepMuted, currentAudioOptions());
     if (keepCamera) {
-      await room.localParticipant.setCameraEnabled(true, CAMERA_OPTIONS);
+      await room.localParticipant.setCameraEnabled(true, currentCameraOptions());
       state.cameraOn = true;
     }
     if (hadScreenShare) {
@@ -529,6 +553,9 @@ function mountMediaTrack(track, publication, participant, forceLocal = false) {
     audio.playsInline = true;
     audio.dataset.mediaKey = key;
     els.audioMount.append(audio);
+    if (state.devices.audioOutput && audio.setSinkId) {
+      audio.setSinkId(state.devices.audioOutput).catch(() => {});
+    }
     state.mediaElements.set(key, { key, kind: "audio", track, element: audio });
     return;
   }
@@ -544,6 +571,9 @@ function mountMediaTrack(track, publication, participant, forceLocal = false) {
   video.autoplay = true;
   video.playsInline = true;
   video.muted = isLocal;
+  if (isLocal && publication.source === Track.Source.Camera && state.devices.mirror) {
+    video.classList.add("mirrored");
+  }
 
   tile.append(video, mediaCaption(participant, publication, isLocal));
   els.mediaGrid.append(tile);
@@ -856,7 +886,7 @@ async function startMicTest() {
   }
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_OPTIONS });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: currentAudioOptions() });
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     const audioContext = new AudioContextClass();
     const source = audioContext.createMediaStreamSource(stream);
@@ -959,4 +989,71 @@ function syncSkinPicker() {
   els.skinButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.avatar === state.avatar);
   });
+}
+
+function applyName(name) {
+  const clean = name.trim().slice(0, 28);
+  if (!clean) return;
+  state.name = clean;
+  localStorage.setItem("gt.name", clean);
+  syncSelfPanel();
+  if (state.selfId) {
+    socket.emit("presence:update", { name: clean });
+  }
+}
+
+async function applyAvatarFile(file) {
+  try {
+    const avatar = await fileToAvatarDataUrl(file);
+    setAvatar(avatar);
+  } catch (error) {
+    alert(error.message || "Nao foi possivel usar essa imagem.");
+  }
+}
+
+async function applyDeviceChange(kind, deviceId) {
+  if (kind === "audiooutput") {
+    await applyAudioOutput(deviceId);
+    return;
+  }
+  if (!state.livekitRoom || !deviceId) return;
+  await state.livekitRoom.switchActiveDevice(kind, deviceId);
+}
+
+async function applyAudioOutput(deviceId) {
+  if (state.livekitRoom && deviceId) {
+    try {
+      await state.livekitRoom.switchActiveDevice("audiooutput", deviceId);
+      return;
+    } catch (error) {
+      console.warn("Falha ao trocar saida pelo LiveKit", error);
+    }
+  }
+  // Fallback: aplica o sink diretamente nos elementos de audio montados.
+  for (const mounted of state.mediaElements.values()) {
+    if (mounted.kind === "audio" && deviceId && mounted.element?.setSinkId) {
+      mounted.element.setSinkId(deviceId).catch(() => {});
+    }
+  }
+}
+
+async function applyQualityChange() {
+  if (state.busy || !state.livekitRoom || !state.cameraOn) return;
+  setBusy(true, "Ajustando qualidade...");
+  try {
+    await state.livekitRoom.localParticipant.setCameraEnabled(false);
+    await state.livekitRoom.localParticipant.setCameraEnabled(true, currentCameraOptions());
+    state.cameraOn = true;
+  } catch (error) {
+    console.error("Falha ao ajustar qualidade", error);
+  } finally {
+    setBusy(false);
+  }
+}
+
+function applyMirror() {
+  const mirror = state.devices.mirror;
+  document
+    .querySelectorAll('.media-tile.local[data-source="camera"] .media-video')
+    .forEach((video) => video.classList.toggle("mirrored", mirror));
 }

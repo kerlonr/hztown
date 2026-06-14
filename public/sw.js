@@ -1,4 +1,4 @@
-const CACHE_NAME = "projeto-gt-static-v3";
+const CACHE_NAME = "projeto-gt-static-v4";
 const STATIC_ASSETS = [
   "/",
   "/styles.css",
@@ -9,6 +9,7 @@ const STATIC_ASSETS = [
   "/js/core/domElements.js",
   "/js/features/chatPanel.js",
   "/js/features/pwaRegistration.js",
+  "/js/features/settingsPanel.js",
   "/js/shared/formattingValues.js",
   "/js/ui/avatarRenderer.js",
   "/js/ui/iconRenderer.js",

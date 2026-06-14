@@ -1,24 +1,52 @@
 import { randomUUID } from "crypto";
-import { sanitizeAvatar } from "./sanitizers.js";
+import { sanitizeAvatar, sanitizeName, sanitizeSpaceId, sanitizeText } from "./sanitizers.js";
 import { publicUser } from "./spaceStore.js";
 
 const MESSAGE_LIMIT = 120;
+const ALLOWED_CHANNELS = new Set(["team", "daily", "focus"]);
+
+// Limites simples por socket para conter flood de eventos.
+const RATE_LIMITS = {
+  "presence:update": { tokens: 30, intervalMs: 1000 },
+  "chat:send": { tokens: 5, intervalMs: 3000 }
+};
+
+function createRateLimiter() {
+  const buckets = new Map();
+  return (event) => {
+    const limit = RATE_LIMITS[event];
+    if (!limit) return true;
+
+    const now = Date.now();
+    const bucket = buckets.get(event) || { count: 0, resetAt: now + limit.intervalMs };
+    if (now > bucket.resetAt) {
+      bucket.count = 0;
+      bucket.resetAt = now + limit.intervalMs;
+    }
+    bucket.count += 1;
+    buckets.set(event, bucket);
+    return bucket.count <= limit.tokens;
+  };
+}
 
 export function registerSocketHandlers(io, store) {
   io.on("connection", (socket) => {
     let currentSpaceId = null;
+    const allow = createRateLimiter();
 
     socket.on("space:join", (profile) => {
-      currentSpaceId = profile.spaceId || "tec-hq";
+      if (currentSpaceId) return; // ja entrou neste socket
+      currentSpaceId = sanitizeSpaceId(profile?.spaceId, "tec-hq");
       const space = store.getSpace(currentSpaceId);
+      const channel = ALLOWED_CHANNELS.has(profile?.channel) ? profile.channel : "team";
       const user = {
         id: socket.id,
-        name: profile.name?.trim()?.slice(0, 28) || "Convidado",
-        color: profile.color || "#7c5cff",
-        avatar: sanitizeAvatar(profile.avatar),
-        x: Number.isFinite(profile.x) ? profile.x : 42,
-        y: Number.isFinite(profile.y) ? profile.y : 50,
-        channel: profile.channel || "team",
+        name: sanitizeName(profile?.name),
+        color: typeof profile?.color === "string" ? profile.color.slice(0, 24) : "#7c5cff",
+        avatar: sanitizeAvatar(profile?.avatar),
+        x: clampCoord(profile?.x, 42),
+        y: clampCoord(profile?.y, 50),
+        channel,
         inVoice: false,
         muted: false
       };
@@ -34,30 +62,33 @@ export function registerSocketHandlers(io, store) {
     });
 
     socket.on("presence:update", (patch) => {
-      if (!currentSpaceId) return;
+      if (!currentSpaceId || !patch || !allow("presence:update")) return;
 
       const user = store.getSpace(currentSpaceId).get(socket.id);
       if (!user) return;
 
       if (Number.isFinite(patch.x)) user.x = Math.max(0, Math.min(100, patch.x));
       if (Number.isFinite(patch.y)) user.y = Math.max(0, Math.min(100, patch.y));
-      if (typeof patch.channel === "string") user.channel = patch.channel.slice(0, 32);
+      if (typeof patch.channel === "string" && ALLOWED_CHANNELS.has(patch.channel)) {
+        user.channel = patch.channel;
+      }
       if (typeof patch.inVoice === "boolean") user.inVoice = patch.inVoice;
       if (typeof patch.muted === "boolean") user.muted = patch.muted;
       if (typeof patch.avatar === "string") user.avatar = sanitizeAvatar(patch.avatar);
+      if (typeof patch.name === "string") user.name = sanitizeName(patch.name, user.name);
 
       socket.to(currentSpaceId).emit("presence:updated", publicUser(user));
       socket.emit("presence:self", publicUser(user));
     });
 
     socket.on("chat:send", (payload) => {
-      if (!currentSpaceId) return;
+      if (!currentSpaceId || !allow("chat:send")) return;
 
       const user = store.getSpace(currentSpaceId).get(socket.id);
       if (!user) return;
 
-      const text = String(payload?.text || "").trim().slice(0, 800);
-      const channel = String(payload?.channel || user.channel || "team").slice(0, 32);
+      const text = sanitizeText(payload?.text, 800);
+      const channel = ALLOWED_CHANNELS.has(payload?.channel) ? payload.channel : user.channel;
       if (!text) return;
 
       const message = {
@@ -80,18 +111,6 @@ export function registerSocketHandlers(io, store) {
       io.to(currentSpaceId).emit("chat:message", message);
     });
 
-    socket.on("rtc:offer", ({ to, description }) => {
-      io.to(to).emit("rtc:offer", { from: socket.id, description });
-    });
-
-    socket.on("rtc:answer", ({ to, description }) => {
-      io.to(to).emit("rtc:answer", { from: socket.id, description });
-    });
-
-    socket.on("rtc:ice-candidate", ({ to, candidate }) => {
-      io.to(to).emit("rtc:ice-candidate", { from: socket.id, candidate });
-    });
-
     socket.on("disconnect", () => {
       if (!currentSpaceId) return;
 
@@ -109,4 +128,9 @@ export function registerSocketHandlers(io, store) {
       }
     });
   });
+}
+
+function clampCoord(value, fallback) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(0, Math.min(100, value));
 }

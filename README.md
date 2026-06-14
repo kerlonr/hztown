@@ -63,12 +63,22 @@ npm run dev
 
 ## O que este MVP entrega
 
-- Interface minimalista inspirada em Discord para espacos e canais.
+- Interface moderna e minimalista inspirada em Discord e Gather Town para espacos e canais.
 - Planta baixa interativa com avatares movidos por clique, setas ou WASD.
 - Presenca em tempo real com Socket.IO.
 - Chamada de voz, camera e compartilhamento de tela com LiveKit.
-- Otimizacoes de midia com `adaptiveStream`, `dynacast`, simulcast e audio com DTX/RED.
+- Painel de configuracoes (estilo Discord/Gather): selecao de microfone, camera e saida de audio,
+  qualidade de video (720p/540p/360p), espelhar camera e edicao de nome/skin em tempo real.
+- Otimizacoes de midia com `adaptiveStream`, `dynacast`, simulcast, captura 720p/30fps e audio com DTX/RED.
 - Base separada para evoluir para integracoes, agenda, chat, salas privadas e autenticacao.
+
+## Seguranca
+
+- Cabecalhos de seguranca em todas as respostas: `Content-Security-Policy`, `X-Content-Type-Options`,
+  `X-Frame-Options: DENY`, `Referrer-Policy` e `Permissions-Policy` (libera camera/microfone apenas para a propria origem).
+- Sanitizacao de nomes, mensagens, ids de sala e avatares no servidor (remocao de caracteres de controle).
+- Rate limiting por socket (presenca e chat) e por IP na emissao de tokens LiveKit.
+- Limite de payload do Socket.IO (1 MB) e validacao de canais/coordenadas no servidor.
 
 ## Proximos passos naturais
 

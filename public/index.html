@@ -137,6 +137,10 @@
                 <span class="tool-icon" data-icon="message"></span>
                 <span class="sr-only">Chat</span>
               </button>
+              <button id="settingsButton" class="tool-button" aria-label="Configuracoes" title="Configuracoes" type="button">
+                <span class="tool-icon" data-icon="settings"></span>
+                <span class="sr-only">Configuracoes</span>
+              </button>
               <button id="moreButton" class="tool-button more-button" aria-label="Mais opcoes" title="Mais opcoes" type="button" aria-expanded="false">
                 <span class="tool-icon" data-icon="more"></span>
                 <span class="sr-only">Mais opcoes</span>
@@ -189,6 +193,8 @@
             <button class="skin-option" type="button" data-avatar="default:blue" title="Skin blue"></button>
             <button class="skin-option" type="button" data-avatar="default:rose" title="Skin rose"></button>
             <button class="skin-option" type="button" data-avatar="default:gold" title="Skin gold"></button>
+            <button class="skin-option" type="button" data-avatar="default:violet" title="Skin violet"></button>
+            <button class="skin-option" type="button" data-avatar="default:slate" title="Skin slate"></button>
           </div>
           <label class="upload-button">
             Usar imagem
@@ -196,6 +202,77 @@
           </label>
         </div>
         <button class="primary-button" value="confirm">Entrar no espaco</button>
+      </form>
+    </dialog>
+
+    <dialog id="settingsDialog" class="settings-dialog">
+      <form method="dialog" id="settingsForm">
+        <header class="settings-head">
+          <div>
+            <p class="eyebrow">Configuracoes</p>
+            <h2>Audio e video</h2>
+          </div>
+          <button id="settingsClose" class="icon-button" type="button" value="cancel" aria-label="Fechar" title="Fechar">
+            <span class="tool-icon" data-icon="close"></span>
+          </button>
+        </header>
+
+        <div class="settings-body">
+          <section class="settings-group">
+            <p class="section-title">Perfil</p>
+            <label class="field">
+              Nome
+              <input id="settingsName" maxlength="28" autocomplete="name" placeholder="Seu nome" />
+            </label>
+            <div class="skin-field">
+              <span>Skin</span>
+              <div class="skin-picker" id="settingsSkinPicker">
+                <button class="skin-option" type="button" data-avatar="default:mint" title="Skin mint"></button>
+                <button class="skin-option" type="button" data-avatar="default:blue" title="Skin blue"></button>
+                <button class="skin-option" type="button" data-avatar="default:rose" title="Skin rose"></button>
+                <button class="skin-option" type="button" data-avatar="default:gold" title="Skin gold"></button>
+                <button class="skin-option" type="button" data-avatar="default:violet" title="Skin violet"></button>
+                <button class="skin-option" type="button" data-avatar="default:slate" title="Skin slate"></button>
+              </div>
+              <label class="upload-button">
+                Usar imagem
+                <input id="settingsAvatarInput" type="file" accept="image/png,image/jpeg,image/webp" />
+              </label>
+            </div>
+          </section>
+
+          <section class="settings-group">
+            <p class="section-title">Dispositivos</p>
+            <label class="field">
+              <span class="field-icon" data-icon="mic"></span>
+              Microfone
+              <select id="micSelect"></select>
+            </label>
+            <label class="field">
+              <span class="field-icon" data-icon="video"></span>
+              Camera
+              <select id="cameraSelect"></select>
+            </label>
+            <label class="field">
+              <span class="field-icon" data-icon="speaker"></span>
+              Saida de audio
+              <select id="speakerSelect"></select>
+            </label>
+            <button id="refreshDevices" class="ghost-button" type="button">Atualizar dispositivos</button>
+          </section>
+
+          <section class="settings-group">
+            <p class="section-title">Qualidade de video</p>
+            <label class="field">
+              Resolucao
+              <select id="qualitySelect"></select>
+            </label>
+            <label class="toggle-row">
+              <input id="mirrorToggle" type="checkbox" />
+              <span>Espelhar minha camera</span>
+            </label>
+          </section>
+        </div>
       </form>
     </dialog>
 
