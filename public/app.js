@@ -157,28 +157,41 @@ els.channelButtons.forEach((button) => {
   });
 });
 
+// --- Movimento fluido estilo Gather Town ---
+const KEY_DIRECTIONS = {
+  ArrowUp: "up", w: "up", W: "up",
+  ArrowDown: "down", s: "down", S: "down",
+  ArrowLeft: "left", a: "left", A: "left",
+  ArrowRight: "right", d: "right", D: "right"
+};
+const MOVE_SPEED = 0.42; // % do mapa por frame (~25%/s)
+const EMIT_INTERVAL = 90; // ms entre updates de rede
+const PROXIMITY_RADIUS = 16; // raio (em %) para destacar quem esta perto
+const heldDirections = new Set();
+const mapEls = new Map();
+const localPos = { x: CHANNELS.team.x, y: CHANNELS.team.y };
+let moveTarget = null;
+let moveRAF = null;
+let lastMoveEmit = 0;
+
 els.floorPlan.addEventListener("keydown", (event) => {
-  const keyMap = {
-    ArrowUp: [0, -3],
-    w: [0, -3],
-    W: [0, -3],
-    ArrowDown: [0, 3],
-    s: [0, 3],
-    S: [0, 3],
-    ArrowLeft: [-3, 0],
-    a: [-3, 0],
-    A: [-3, 0],
-    ArrowRight: [3, 0],
-    d: [3, 0],
-    D: [3, 0]
-  };
-  const delta = keyMap[event.key];
-  if (!delta || !state.selfId) return;
+  const dir = KEY_DIRECTIONS[event.key];
+  if (!dir || !state.selfId) return;
 
   event.preventDefault();
-  const self = state.users.get(state.selfId);
-  moveSelf(self.x + delta[0], self.y + delta[1]);
+  moveTarget = null; // teclado cancela a caminhada por clique
+  if (!heldDirections.has(dir)) {
+    heldDirections.add(dir);
+    startMoveLoop();
+  }
 });
+
+els.floorPlan.addEventListener("keyup", (event) => {
+  const dir = KEY_DIRECTIONS[event.key];
+  if (dir) heldDirections.delete(dir);
+});
+
+window.addEventListener("blur", () => heldDirections.clear());
 
 els.floorPlan.addEventListener("pointerdown", (event) => {
   if (!state.selfId) return;
@@ -186,7 +199,8 @@ els.floorPlan.addEventListener("pointerdown", (event) => {
   const rect = els.floorPlan.getBoundingClientRect();
   const x = ((event.clientX - rect.left) / rect.width) * 100;
   const y = ((event.clientY - rect.top) / rect.height) * 100;
-  moveSelf(x, y);
+  moveTarget = { x: clamp(x, 8, 92), y: clamp(y, 12, 88) };
+  startMoveLoop();
   els.floorPlan.focus();
 });
 
@@ -194,6 +208,11 @@ socket.on("space:ready", ({ selfId, users, messages = [] }) => {
   state.selfId = selfId;
   state.users = new Map(users.map((user) => [user.id, user]));
   state.messages = messages;
+  const self = state.users.get(selfId);
+  if (self) {
+    localPos.x = self.x;
+    localPos.y = self.y;
+  }
   syncSelfPanel();
   render();
 });
@@ -210,14 +229,13 @@ socket.on("presence:updated", (user) => {
 });
 
 socket.on("presence:self", (user) => {
-  const previousChannel = state.channel;
-  state.users.set(user.id, user);
-  state.channel = user.channel;
-  render();
-
-  if (state.livekitRoom && previousChannel !== state.channel) {
-    switchLiveKitRoom();
-  }
+  // O cliente e a autoridade sobre a propria posicao e canal; preservamos o estado local.
+  state.users.set(state.selfId, {
+    ...user,
+    x: localPos.x,
+    y: localPos.y,
+    channel: state.channel
+  });
 });
 
 socket.on("presence:left", (id) => {
@@ -691,17 +709,23 @@ function liveKitRoomName(channel) {
 }
 
 function setChannel(channel) {
-  if (!CHANNELS[channel] || channel === state.channel) return;
-  state.channel = channel;
+  if (!CHANNELS[channel] || !state.selfId) return;
   const target = CHANNELS[channel];
-  moveSelf(target.x, target.y, channel);
+  changeChannelTo(channel);
+  moveTarget = { x: target.x, y: target.y };
+  socket.emit("presence:update", { x: localPos.x, y: localPos.y, channel: state.channel });
+  startMoveLoop();
+  els.floorPlan.focus();
 }
 
-function moveSelf(x, y, forcedChannel) {
-  const nextX = clamp(x, 8, 92);
-  const nextY = clamp(y, 12, 88);
-  const nextChannel = forcedChannel || channelFromPosition(nextX, nextY) || state.channel;
-  socket.emit("presence:update", { x: nextX, y: nextY, channel: nextChannel });
+// Troca de canal decidida pelo proprio cliente: atualiza UI e a sala LiveKit.
+function changeChannelTo(channel) {
+  if (!CHANNELS[channel] || channel === state.channel) return;
+  state.channel = channel;
+  renderChannels();
+  renderVoiceStrip();
+  renderChat();
+  if (state.livekitRoom) switchLiveKitRoom();
 }
 
 function channelFromPosition(x, y) {
@@ -709,6 +733,102 @@ function channelFromPosition(x, y) {
   if (x >= 50 && y < 62) return "daily";
   if (x >= 50 && y >= 62) return "focus";
   return null;
+}
+
+function startMoveLoop() {
+  if (moveRAF) return;
+  let last = performance.now();
+
+  const step = (now) => {
+    const dt = Math.min(2.5, (now - last) / 16.67); // fator de frame (cap p/ travadas)
+    last = now;
+    let moved = false;
+
+    if (heldDirections.size) {
+      const dist = MOVE_SPEED * dt;
+      if (heldDirections.has("up")) { localPos.y -= dist; moved = true; }
+      if (heldDirections.has("down")) { localPos.y += dist; moved = true; }
+      if (heldDirections.has("left")) { localPos.x -= dist; moved = true; }
+      if (heldDirections.has("right")) { localPos.x += dist; moved = true; }
+    } else if (moveTarget) {
+      const dx = moveTarget.x - localPos.x;
+      const dy = moveTarget.y - localPos.y;
+      const distance = Math.hypot(dx, dy);
+      const stepDist = MOVE_SPEED * 1.7 * dt;
+      if (distance <= stepDist) {
+        localPos.x = moveTarget.x;
+        localPos.y = moveTarget.y;
+        moveTarget = null;
+      } else {
+        localPos.x += (dx / distance) * stepDist;
+        localPos.y += (dy / distance) * stepDist;
+      }
+      moved = true;
+    }
+
+    if (moved) {
+      localPos.x = clamp(localPos.x, 8, 92);
+      localPos.y = clamp(localPos.y, 12, 88);
+      applySelfPosition();
+      if (now - lastMoveEmit >= EMIT_INTERVAL) emitPosition(now);
+    }
+
+    if (heldDirections.size || moveTarget) {
+      moveRAF = requestAnimationFrame(step);
+    } else {
+      moveRAF = null;
+      setWalking(false);
+      emitPosition(now);
+      finalizeChannel();
+    }
+  };
+
+  setWalking(true);
+  moveRAF = requestAnimationFrame(step);
+}
+
+function setWalking(walking) {
+  mapEls.get(state.selfId)?.classList.toggle("walking", walking);
+}
+
+function applySelfPosition() {
+  const self = state.users.get(state.selfId);
+  if (self) {
+    self.x = localPos.x;
+    self.y = localPos.y;
+  }
+  const el = mapEls.get(state.selfId);
+  if (el) {
+    el.style.left = `${localPos.x}%`;
+    el.style.top = `${localPos.y}%`;
+  }
+  els.proximityZone.style.left = `${localPos.x}%`;
+  els.proximityZone.style.top = `${localPos.y}%`;
+  updateProximity();
+}
+
+function emitPosition(now = performance.now()) {
+  lastMoveEmit = now;
+  socket.emit("presence:update", { x: localPos.x, y: localPos.y, channel: state.channel });
+}
+
+// Ao parar, o canal e definido pela area onde o avatar ficou (evita troca de sala no meio do caminho).
+function finalizeChannel() {
+  const detected = channelFromPosition(localPos.x, localPos.y);
+  if (detected && detected !== state.channel) {
+    changeChannelTo(detected);
+    socket.emit("presence:update", { x: localPos.x, y: localPos.y, channel: state.channel });
+  }
+}
+
+function updateProximity() {
+  for (const [id, el] of mapEls) {
+    if (id === state.selfId) continue;
+    const user = state.users.get(id);
+    if (!user) continue;
+    const near = Math.hypot(user.x - localPos.x, user.y - localPos.y) < PROXIMITY_RADIUS;
+    el.classList.toggle("near", near);
+  }
 }
 
 function setBusy(busy, label = "") {
@@ -816,24 +936,40 @@ function renderVoiceStrip() {
   }
 }
 
+// Atualiza avatares no lugar (sem recriar o DOM) para movimento fluido e sem flicker.
 function renderMap() {
-  els.avatarsLayer.innerHTML = "";
   for (const user of state.users.values()) {
-    const avatar = document.createElement("div");
-    avatar.className = `map-avatar ${user.id === state.selfId ? "self" : ""}`;
-    avatar.dataset.identity = user.id;
-    avatar.dataset.name = user.id === state.selfId ? `Voce, ${user.name}` : user.name;
-    avatar.style.left = `${user.x}%`;
-    avatar.style.top = `${user.y}%`;
-    applyAvatar(avatar, user);
-    els.avatarsLayer.append(avatar);
+    const isSelf = user.id === state.selfId;
+    let el = mapEls.get(user.id);
+
+    if (!el) {
+      el = document.createElement("div");
+      el.className = `map-avatar ${isSelf ? "self" : ""}`;
+      el.dataset.identity = user.id;
+      els.avatarsLayer.append(el);
+      mapEls.set(user.id, el);
+    }
+
+    el.dataset.name = isSelf ? `Voce, ${user.name}` : user.name;
+    const x = isSelf ? localPos.x : user.x;
+    const y = isSelf ? localPos.y : user.y;
+    el.style.left = `${x}%`;
+    el.style.top = `${y}%`;
+    applyAvatar(el, user);
+    el.classList.toggle("speaking", state.speakingIds.has(user.id));
   }
 
-  const self = state.users.get(state.selfId);
-  if (self) {
-    els.proximityZone.style.left = `${self.x}%`;
-    els.proximityZone.style.top = `${self.y}%`;
+  // Remove avatares de quem saiu.
+  for (const [id, el] of mapEls) {
+    if (!state.users.has(id)) {
+      el.remove();
+      mapEls.delete(id);
+    }
   }
+
+  els.proximityZone.style.left = `${localPos.x}%`;
+  els.proximityZone.style.top = `${localPos.y}%`;
+  updateProximity();
 }
 
 function syncSelfPanel() {
