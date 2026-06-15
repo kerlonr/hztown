@@ -3,7 +3,7 @@ import { sanitizeAvatar, sanitizeName, sanitizeSpaceId, sanitizeText } from "./s
 import { publicUser } from "./spaceStore.js";
 
 const MESSAGE_LIMIT = 120;
-const ALLOWED_CHANNELS = new Set(["team", "daily", "focus"]);
+const ALLOWED_CHANNELS = new Set(["team", "daily", "focus", "lounge"]);
 
 // Limites simples por socket para conter flood de eventos.
 const RATE_LIMITS = {

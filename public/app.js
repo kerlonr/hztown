@@ -8,8 +8,11 @@ import { renderChat, syncChatPanel } from "./js/features/chatPanel.js";
 import {
   CHANNELS,
   MIC_TEST_TIMEOUT_MS,
+  PRIVATE_ROOMS,
+  PROXIMITY,
   SCREEN_OPTIONS,
   SCREEN_SHARE_ENCODING,
+  SPACE_ROOM,
   audioOptions,
   cameraOptions
 } from "./js/core/appConfig.js";
@@ -212,6 +215,7 @@ socket.on("space:ready", ({ selfId, users, messages = [] }) => {
   if (self) {
     localPos.x = self.x;
     localPos.y = self.y;
+    state.channel = chatChannelFromPosition(localPos.x, localPos.y);
   }
   syncSelfPanel();
   render();
@@ -357,13 +361,8 @@ async function toggleScreenShare() {
 }
 
 async function connectLiveKitRoom() {
-  const roomName = liveKitRoomName(state.channel);
-  if (state.livekitRoom && state.livekitRoomName === roomName) {
+  if (state.livekitRoom && state.livekitRoomName === SPACE_ROOM) {
     return state.livekitRoom;
-  }
-
-  if (state.livekitRoom) {
-    await disconnectLiveKitRoom({ resetControls: false });
   }
 
   clearMediaElements();
@@ -385,9 +384,9 @@ async function connectLiveKitRoom() {
 
   bindLiveKitRoom(room);
   state.livekitRoom = room;
-  state.livekitRoomName = roomName;
+  state.livekitRoomName = SPACE_ROOM;
 
-  const credentials = await getLiveKitCredentials(roomName);
+  const credentials = await getLiveKitCredentials(SPACE_ROOM);
   await room.connect(credentials.url, credentials.token, {
     autoSubscribe: true,
     maxRetries: 2,
@@ -395,45 +394,9 @@ async function connectLiveKitRoom() {
     websocketTimeout: 15000
   });
   mountExistingTracks(room);
-  setConnectionStatus(`LiveKit: ${CHANNELS[state.channel].label}`);
+  setConnectionStatus("No espaco — audio por proximidade");
+  updateProximityAudio();
   return room;
-}
-
-async function switchLiveKitRoom() {
-  if (state.busy) return;
-
-  const keepCamera = state.cameraOn;
-  const keepMuted = state.muted;
-  const hadScreenShare = state.screenOn;
-
-  setBusy(true, "Mudando de canal...");
-  try {
-    await disconnectLiveKitRoom({ resetControls: false });
-    state.cameraOn = false;
-    state.screenOn = false;
-    state.muted = keepMuted;
-
-    const room = await connectLiveKitRoom();
-    await room.localParticipant.setMicrophoneEnabled(!keepMuted, currentAudioOptions());
-    if (keepCamera) {
-      await room.localParticipant.setCameraEnabled(true, currentCameraOptions());
-      state.cameraOn = true;
-    }
-    if (hadScreenShare) {
-      state.screenOn = false;
-      setConnectionStatus("Tela encerrada ao trocar de canal");
-    }
-    socket.emit("presence:update", { inVoice: true, muted: keepMuted, channel: state.channel });
-    syncSelfPanel();
-    render();
-  } catch (error) {
-    alert("Nao foi possivel trocar a sala LiveKit.");
-    console.error(error);
-    await disconnectLiveKitRoom();
-    socket.emit("presence:update", { inVoice: false, muted: false });
-  } finally {
-    setBusy(false);
-  }
 }
 
 async function disconnectLiveKitRoom({ resetControls = true } = {}) {
@@ -500,7 +463,8 @@ function bindLiveKitRoom(room) {
       setConnectionStatus("Reconectando LiveKit...");
     })
     .on(RoomEvent.Reconnected, () => {
-      setConnectionStatus(`LiveKit: ${CHANNELS[state.channel].label}`);
+      setConnectionStatus("No espaco — audio por proximidade");
+      updateProximityAudio();
     })
     .on(RoomEvent.Disconnected, () => {
       if (state.livekitRoom !== room) return;
@@ -562,6 +526,7 @@ function mountMediaTrack(track, publication, participant, forceLocal = false) {
   }
 
   const isLocal = forceLocal || participant.identity === state.selfId;
+  const identity = participant.identity;
 
   if (track.kind === Track.Kind.Audio) {
     if (isLocal) return;
@@ -574,7 +539,8 @@ function mountMediaTrack(track, publication, participant, forceLocal = false) {
     if (state.devices.audioOutput && audio.setSinkId) {
       audio.setSinkId(state.devices.audioOutput).catch(() => {});
     }
-    state.mediaElements.set(key, { key, kind: "audio", track, element: audio });
+    state.mediaElements.set(key, { key, identity, kind: "audio", track, element: audio });
+    updateProximityAudio();
     return;
   }
 
@@ -595,8 +561,9 @@ function mountMediaTrack(track, publication, participant, forceLocal = false) {
 
   tile.append(video, mediaCaption(participant, publication, isLocal));
   els.mediaGrid.append(tile);
-  state.mediaElements.set(key, { key, kind: "video", track, tile, element: video });
+  state.mediaElements.set(key, { key, identity, kind: "video", track, tile, element: video });
   renderMediaEmptyState();
+  updateProximityAudio();
 }
 
 function removeMediaTrack(track, publication, participant) {
@@ -668,16 +635,20 @@ function renderMediaLabels() {
 }
 
 function renderMediaEmptyState() {
-  const hasVideo = Array.from(state.mediaElements.values()).some((item) => item.kind === "video");
+  // Conta apenas tiles de video visiveis (os escondidos por proximidade nao contam).
+  const hasVideo = Array.from(state.mediaElements.values()).some(
+    (item) => item.kind === "video" && item.tile && item.tile.style.display !== "none"
+  );
   els.mediaGrid.classList.toggle("empty", !hasVideo);
-  if (!hasVideo) {
-    els.mediaGrid.innerHTML = `
-      <div class="media-empty">
-        <strong>Sem video ativo</strong>
-        <small>Abra a camera ou compartilhe a tela para aparecer aqui.</small>
-      </div>
-    `;
-  } else {
+
+  if (!hasVideo && !els.mediaGrid.querySelector(".media-empty")) {
+    const empty = document.createElement("div");
+    empty.className = "media-empty";
+    empty.innerHTML =
+      "<strong>Sem video por perto</strong>" +
+      "<small>Aproxime-se de alguem com camera ligada ou abra a sua.</small>";
+    els.mediaGrid.append(empty);
+  } else if (hasVideo) {
     els.mediaGrid.querySelector(".media-empty")?.remove();
   }
 }
@@ -704,35 +675,26 @@ function sourceLabel(source) {
   return "Midia";
 }
 
-function liveKitRoomName(channel) {
-  return `tec-hq-${channel}`;
-}
-
+// Clicar numa area da lateral faz o avatar caminhar ate la (o canal/zona segue a posicao).
 function setChannel(channel) {
-  if (!CHANNELS[channel] || !state.selfId) return;
   const target = CHANNELS[channel];
-  changeChannelTo(channel);
+  if (!target || !state.selfId) return;
   moveTarget = { x: target.x, y: target.y };
-  socket.emit("presence:update", { x: localPos.x, y: localPos.y, channel: state.channel });
   startMoveLoop();
   els.floorPlan.focus();
 }
 
-// Troca de canal decidida pelo proprio cliente: atualiza UI e a sala LiveKit.
-function changeChannelTo(channel) {
-  if (!CHANNELS[channel] || channel === state.channel) return;
-  state.channel = channel;
-  renderChannels();
-  renderVoiceStrip();
-  renderChat();
-  if (state.livekitRoom) switchLiveKitRoom();
+// Sala privada onde a posicao se encontra (ou null se em area aberta).
+function roomFromPosition(x, y) {
+  for (const [name, r] of Object.entries(PRIVATE_ROOMS)) {
+    if (x >= r.x1 && x <= r.x2 && y >= r.y1 && y <= r.y2) return name;
+  }
+  return null;
 }
 
-function channelFromPosition(x, y) {
-  if (x < 50 && y < 62) return "team";
-  if (x >= 50 && y < 62) return "daily";
-  if (x >= 50 && y >= 62) return "focus";
-  return null;
+// Canal de chat associado a posicao (sala privada ou "lounge" da area aberta).
+function chatChannelFromPosition(x, y) {
+  return roomFromPosition(x, y) || "lounge";
 }
 
 function startMoveLoop() {
@@ -779,7 +741,6 @@ function startMoveLoop() {
       moveRAF = null;
       setWalking(false);
       emitPosition(now);
-      finalizeChannel();
     }
   };
 
@@ -804,31 +765,73 @@ function applySelfPosition() {
   }
   els.proximityZone.style.left = `${localPos.x}%`;
   els.proximityZone.style.top = `${localPos.y}%`;
-  updateProximity();
+  scheduleProximity(false);
 }
 
 function emitPosition(now = performance.now()) {
   lastMoveEmit = now;
+  // O canal de chat acompanha a area onde voce esta.
+  const channel = chatChannelFromPosition(localPos.x, localPos.y);
+  if (channel !== state.channel) {
+    state.channel = channel;
+    renderChannels();
+    renderChat();
+  }
   socket.emit("presence:update", { x: localPos.x, y: localPos.y, channel: state.channel });
 }
 
-// Ao parar, o canal e definido pela area onde o avatar ficou (evita troca de sala no meio do caminho).
-function finalizeChannel() {
-  const detected = channelFromPosition(localPos.x, localPos.y);
-  if (detected && detected !== state.channel) {
-    changeChannelTo(detected);
-    socket.emit("presence:update", { x: localPos.x, y: localPos.y, channel: state.channel });
+// Volume relativo (0..1) de um usuario para mim: salas privadas isolam, area aberta usa distancia.
+function audibility(user, myRoom) {
+  const otherRoom = roomFromPosition(user.x, user.y);
+  if (myRoom || otherRoom) {
+    return myRoom && otherRoom === myRoom ? 1 : 0;
+  }
+  const dx = (user.x - localPos.x) * PROXIMITY.xScale;
+  const dy = user.y - localPos.y;
+  const distance = Math.hypot(dx, dy);
+  return clamp((PROXIMITY.far - distance) / (PROXIMITY.far - PROXIMITY.near), 0, 1);
+}
+
+function setMountedVolume(mounted, level) {
+  if (typeof mounted.track?.setVolume === "function") {
+    mounted.track.setVolume(level);
+  } else if (mounted.element) {
+    mounted.element.volume = level;
   }
 }
 
-function updateProximity() {
+// Atualiza anel de proximidade no mapa + volume do audio + visibilidade do video.
+function updateProximityAudio() {
+  const myRoom = roomFromPosition(localPos.x, localPos.y);
+
   for (const [id, el] of mapEls) {
     if (id === state.selfId) continue;
     const user = state.users.get(id);
-    if (!user) continue;
-    const near = Math.hypot(user.x - localPos.x, user.y - localPos.y) < PROXIMITY_RADIUS;
-    el.classList.toggle("near", near);
+    el.classList.toggle("near", user ? audibility(user, myRoom) > 0 : false);
   }
+
+  if (!state.livekitRoom) return;
+
+  for (const mounted of state.mediaElements.values()) {
+    const id = mounted.identity;
+    if (!id || id === state.selfId) continue;
+    const user = state.users.get(id);
+    const level = user ? audibility(user, myRoom) : 1;
+    if (mounted.kind === "audio") {
+      setMountedVolume(mounted, level);
+    } else if (mounted.kind === "video" && mounted.tile) {
+      mounted.tile.style.display = level > 0 ? "" : "none";
+    }
+  }
+  renderMediaEmptyState();
+}
+
+let lastProxAt = 0;
+function scheduleProximity(force) {
+  const now = performance.now();
+  if (!force && now - lastProxAt < 80) return;
+  lastProxAt = now;
+  updateProximityAudio();
 }
 
 function setBusy(busy, label = "") {
@@ -841,7 +844,7 @@ function setBusy(busy, label = "") {
   if (label) {
     setConnectionStatus(label);
   } else if (state.livekitRoom) {
-    setConnectionStatus(`LiveKit: ${CHANNELS[state.channel].label}`);
+    setConnectionStatus("No espaco — audio por proximidade");
   } else {
     setConnectionStatus("LiveKit pronto");
   }
@@ -879,11 +882,14 @@ function renderChannels() {
   });
 
   const channel = CHANNELS[state.channel];
-  els.voiceTitle.textContent = channel?.label || "Canal";
-  els.voiceSubtitle.textContent = state.livekitRoom
-    ? "Audio, camera e tela estao trafegando pelo LiveKit."
-    : "Entre para conversar com quem estiver no mesmo canal.";
-  els.chatChannelLabel.textContent = channel?.label || "Canal";
+  const inRoom = Boolean(roomFromPosition(localPos.x, localPos.y));
+  els.voiceTitle.textContent = channel?.label || "Espaco";
+  els.voiceSubtitle.textContent = !state.livekitRoom
+    ? "Entre no espaco para falar por proximidade com quem estiver perto."
+    : inRoom
+      ? `Sala ${channel?.label}: todos aqui dentro se ouvem em volume cheio.`
+      : "Area aberta: voce ouve quem esta perto e o volume cai com a distancia.";
+  els.chatChannelLabel.textContent = channel?.label || "Espaco";
 }
 
 function renderOnlineList() {
@@ -909,13 +915,17 @@ function renderOnlineList() {
 
 function renderVoiceStrip() {
   els.voiceTiles.innerHTML = "";
+  const myRoom = roomFromPosition(localPos.x, localPos.y);
+  // Quem voce realmente ouve agora (mesma sala privada ou dentro do alcance de proximidade).
   const users = Array.from(state.users.values()).filter(
-    (user) => user.inVoice && user.channel === state.channel
+    (user) => user.inVoice && user.id !== state.selfId && audibility(user, myRoom) > 0
   );
 
   if (users.length === 0) {
     const empty = document.createElement("small");
-    empty.textContent = "Nenhum participante em voz.";
+    empty.textContent = state.livekitRoom
+      ? "Ninguem por perto. Aproxime-se de alguem para conversar."
+      : "Entre no espaco para ouvir quem esta perto.";
     els.voiceTiles.append(empty);
     return;
   }
@@ -969,7 +979,7 @@ function renderMap() {
 
   els.proximityZone.style.left = `${localPos.x}%`;
   els.proximityZone.style.top = `${localPos.y}%`;
-  updateProximity();
+  scheduleProximity(true);
 }
 
 function syncSelfPanel() {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "projeto-gt-static-v5";
+const CACHE_NAME = "projeto-gt-static-v6";
 const STATIC_ASSETS = [
   "/",
   "/styles.css",

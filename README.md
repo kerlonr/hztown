@@ -44,7 +44,7 @@ LIVEKIT_API_KEY=sua_api_key
 LIVEKIT_API_SECRET=seu_api_secret
 ```
 
-Para self-host local, voce pode usar o servidor do repositorio `livekit/livekit` e gerar chave/secret no proprio LiveKit. O app cria uma sala por canal (`tec-hq-team`, `tec-hq-daily`, `tec-hq-focus`) para reduzir assinatura de midia fora do contexto atual.
+Para self-host local, voce pode usar o servidor do repositorio `livekit/livekit` e gerar chave/secret no proprio LiveKit. O app usa **uma unica sala LiveKit por espaco** (`tec-hq-space`): o audio e governado por proximidade no cliente (volume cai com a distancia, salas privadas isolam o grupo), no estilo Gather Town.
 
 Modo dev local do LiveKit:
 
@@ -63,14 +63,16 @@ npm run dev
 
 ## O que este MVP entrega
 
-- Interface moderna e minimalista inspirada em Discord e Gather Town para espacos e canais.
-- Planta baixa interativa com avatares movidos por clique, setas ou WASD.
-- Presenca em tempo real com Socket.IO.
-- Chamada de voz, camera e compartilhamento de tela com LiveKit.
+- Interface moderna e minimalista inspirada em Discord e Gather Town.
+- Planta baixa interativa com movimento fluido (clique para caminhar, ou WASD/setas continuos).
+- **Audio por proximidade (estilo Gather Town):** voce ouve quem esta perto e o volume cai com a
+  distancia; as salas Team/Daily/Focus sao areas privadas onde todos dentro se ouvem em volume cheio.
+- Video por proximidade: a camera/tela dos outros aparece quando estao no seu alcance (ou na mesma sala).
+- Presenca em tempo real com Socket.IO e uma unica sala LiveKit por espaco.
 - Painel de configuracoes (estilo Discord/Gather): selecao de microfone, camera e saida de audio,
   qualidade de video (720p/540p/360p), espelhar camera e edicao de nome/skin em tempo real.
 - Otimizacoes de midia com `adaptiveStream`, `dynacast`, simulcast, captura 720p/30fps e audio com DTX/RED.
-- Base separada para evoluir para integracoes, agenda, chat, salas privadas e autenticacao.
+- Base separada para evoluir para integracoes, agenda, autenticacao e mais.
 
 ## Seguranca
 
