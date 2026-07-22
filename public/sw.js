@@ -1,4 +1,4 @@
-const CACHE_NAME = "hztown-static-v7";
+const CACHE_NAME = "hztown-static-v8";
 const STATIC_ASSETS = [
   "/",
   "/styles.css",
@@ -7,6 +7,7 @@ const STATIC_ASSETS = [
   "/js/core/appConfig.js",
   "/js/core/appState.js",
   "/js/core/domElements.js",
+  "/js/core/mapGeometry.js",
   "/js/features/chatBubbles.js",
   "/js/features/chatPanel.js",
   "/js/features/pwaRegistration.js",
@@ -17,7 +18,9 @@ const STATIC_ASSETS = [
   "/js/ui/iconRenderer.js",
   "/js/ui/mapScene.js",
   "/js/ui/pixelSprites.js",
+  "/js/ui/sceneFx.js",
   "/js/ui/toastNotifications.js",
+  "/js/ui/windowManager.js",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/vendor/livekit-client/livekit-client.esm.mjs"

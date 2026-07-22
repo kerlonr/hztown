@@ -1,9 +1,9 @@
-import { CHANNELS } from "../core/appConfig.js";
+import { channelLabel } from "../core/mapGeometry.js";
 import { els } from "../core/domElements.js";
 import { applyAvatar } from "./avatarRenderer.js";
 
 export function notifyUserJoined(user) {
-  const channel = CHANNELS[user.channel]?.label || "espaco";
+  const channel = channelLabel(user.channel) || "espaco";
   showToast({
     title: `${user.name} entrou`,
     body: `Entrou em ${channel}`,

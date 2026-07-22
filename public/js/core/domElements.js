@@ -14,7 +14,8 @@ export const els = {
   selfName: document.querySelector("#selfName"),
   selfStatus: document.querySelector("#selfStatus"),
   onlineList: document.querySelector("#onlineList"),
-  channelButtons: Array.from(document.querySelectorAll(".channel")),
+  areaList: document.querySelector("#areaList"),
+  officeSizes: document.querySelector("#officeSizes"),
 
   // HUD e dock
   connectionStatus: document.querySelector("#connectionStatus"),
@@ -29,12 +30,16 @@ export const els = {
   screenIcon: document.querySelector("#screenIcon"),
   settingsButton: document.querySelector("#settingsButton"),
   chatButton: document.querySelector("#chatButton"),
+  chatBadge: document.querySelector("#chatBadge"),
+  chatWinBadge: document.querySelector("#chatWinBadge"),
   mediaButton: document.querySelector("#mediaButton"),
   reactionBar: document.querySelector("#reactionBar"),
 
   // mapa
   floorPlan: document.querySelector("#floorPlan"),
   floorCanvas: document.querySelector("#floorCanvas"),
+  fxCanvas: document.querySelector("#fxCanvas"),
+  roomLabels: document.querySelector("#roomLabels"),
   avatarsLayer: document.querySelector("#avatarsLayer"),
   proximityZone: document.querySelector("#proximityZone"),
 
@@ -51,9 +56,10 @@ export const els = {
   audioMount: document.querySelector("#audioMount"),
   toastStack: document.querySelector("#toastStack"),
 
-  // avatar/skins
+  // avatar/skins e tamanho do escritorio
   avatarInput: document.querySelector("#avatarInput"),
   skinButtons: Array.from(document.querySelectorAll("#skinPicker .skin-option")),
+  sizePicker: document.querySelector("#sizePicker"),
 
   // configuracoes
   settingsDialog: document.querySelector("#settingsDialog"),

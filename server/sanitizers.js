@@ -9,7 +9,7 @@ export function sanitizeLiveKitId(value, fallback) {
   return text || fallback;
 }
 
-export function sanitizeSpaceId(value, fallback = "tec-hq") {
+export function sanitizeSpaceId(value, fallback = "hz-medium") {
   const text = String(value || fallback)
     .trim()
     .toLowerCase()

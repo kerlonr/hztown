@@ -3,22 +3,8 @@ import {
   VideoPresets
 } from "/vendor/livekit-client/livekit-client.esm.mjs";
 
-// Uma unica sala LiveKit para o espaco inteiro: o audio e governado por proximidade.
-export const SPACE_ROOM = "tec-hq-space";
-
-export const CHANNELS = {
-  team: { label: "Team", x: 30, y: 42 },
-  daily: { label: "Daily", x: 70, y: 42 },
-  focus: { label: "Focus", x: 70, y: 78 },
-  lounge: { label: "Lounge", x: 30, y: 79 }
-};
-
-// Retangulos reais das salas privadas (em % do mapa) — quem esta dentro fala em volume cheio.
-export const PRIVATE_ROOMS = {
-  team: { x1: 12, y1: 20, x2: 53, y2: 64 },
-  daily: { x1: 53, y1: 20, x2: 88, y2: 64 },
-  focus: { x1: 53, y1: 66, x2: 88, y2: 92 }
-};
+// Salas, alvos e colisao ficam em mapGeometry.js (por tamanho de escritorio).
+// Aqui ficam apenas as configuracoes de audio/video e proximidade.
 
 // Proximidade do audio (distancia ponderada pela proporcao do mapa).
 export const PROXIMITY = {

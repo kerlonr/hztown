@@ -1,6 +1,6 @@
 # HZTown
 
-Escritorio virtual estilo Gather Town: mapa em pixel art com personagens animados, chat por proximidade, salas privadas e chamadas de audio, camera e tela via LiveKit.
+Escritorio virtual estilo Gather Town: mapa em pixel art com personagens animados, fisica de colisao, chat por proximidade, salas privadas e chamadas de audio, camera e tela via LiveKit. Tres tamanhos de escritorio (Startup, Tech Office e Tech Campus), cada um com ambiente e salas proprias.
 
 ## Rodar localmente
 
@@ -27,11 +27,17 @@ server/sanitizers.js        # Sanitizacao de ids, texto e avatares recebidos
 server/spaceStore.js        # Estado em memoria de usuarios e mensagens
 server/livekitTokenRoute.js # Rota que emite token LiveKit
 server/socketEvents.js      # Eventos Socket.IO de presenca, chat e sinalizacao
-public/app.js             # Orquestracao do cliente: eventos, LiveKit e render principal
-public/js/core/           # Configuracao, estado e referencias DOM
-public/js/features/       # Funcionalidades: chat, baloes de fala, reacoes e PWA
-public/js/ui/             # Renderizadores: sprites pixel art, cenario do mapa, avatar, icones e toasts
-public/js/shared/         # Helpers pequenos e puros
+public/app.js               # Orquestracao do cliente (7 secoes comentadas no topo do arquivo)
+public/js/core/appConfig.js   # Opcoes de audio/video e proximidade
+public/js/core/appState.js    # Estado global do cliente
+public/js/core/domElements.js # Referencias DOM centralizadas
+public/js/core/mapGeometry.js # Catalogo dos 3 escritorios: salas, paredes, moveis e colisao
+public/js/features/           # Chat, baloes de fala, reacoes e PWA
+public/js/ui/mapScene.js      # Desenha o cenario pixel art a partir da geometria
+public/js/ui/sceneFx.js       # Animacoes do ambiente (vapor, LEDs, telas, neon)
+public/js/ui/pixelSprites.js  # Personagens pixel art (4 direcoes, andar e piscar)
+public/js/ui/windowManager.js # Janelas flutuantes arrastaveis
+public/js/shared/             # Helpers pequenos e puros
 ```
 
 ## Configurar LiveKit
@@ -63,14 +69,20 @@ npm run dev
 
 ## O que o HZTown entrega
 
-- Interface moderna e minimalista inspirada em Discord e Gather Town.
-- **Personagens em pixel art** gerados em canvas (6 skins), com animacao de caminhada em 4 direcoes
-  e retratos pixelados na sidebar, chat e toasts. Fotos enviadas continuam funcionando como avatar.
-- **Cenario do escritorio em pixel art** (piso de madeira, carpetes, mesas com monitores, sofa,
-  estante, plantas e portas) desenhado em canvas de baixa resolucao e ampliado com `image-rendering: pixelated`.
-- **Baloes de fala** sobre o avatar quando alguem manda mensagem, estilo Gather Town.
-- **Reacoes rapidas com emoji** (barra no mapa ou teclas 1-6) que flutuam sobre o personagem.
-- Planta baixa interativa com movimento fluido (clique para caminhar, ou WASD/setas continuos).
+- **Mapa em tela cheia** sem cabecalhos: menu hamburguer a esquerda (areas, online, troca de
+  escritorio), botoes a direita que abrem **janelas flutuantes arrastaveis** de chat e video
+  (posicao lembrada entre sessoes), dock de chamada embaixo.
+- **Tres tamanhos de escritorio** escolhiveis na entrada (com preview real do mapa em cada card):
+  Startup (loft + 2 salas), Tech Office (3 salas + lounge) e Tech Campus (4 salas + cafe central).
+  Cada tamanho e um espaco proprio com sala LiveKit propria.
+- **Fisica de movimento**: aceleracao, atrito e colisao com paredes e moveis (desliza nas quinas,
+  portas de verdade). Visual e colisao vem da mesma geometria (`mapGeometry.js`).
+- **Personagens em pixel art** gerados em canvas (6 skins): caminhada em 4 direcoes, piscada e
+  "respiracao" no idle, retratos pixelados na UI. Fotos enviadas continuam funcionando.
+- **Ambiente vivo**: vapor no cafe, LEDs de servidor piscando, monitores tremulando, arcade
+  ciclando cores e letreiro neon pulsando (`sceneFx.js`).
+- **Baloes de fala** sobre o avatar e **reacoes emoji** (barra ou teclas 1-6) flutuando.
+- Movimento por clique ou WASD/setas continuos.
 - **Audio por proximidade (estilo Gather Town):** voce ouve quem esta perto e o volume cai com a
   distancia; as salas Team/Daily/Focus sao areas privadas onde todos dentro se ouvem em volume cheio.
 - Video por proximidade: a camera/tela dos outros aparece quando estao no seu alcance (ou na mesma sala).

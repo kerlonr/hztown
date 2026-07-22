@@ -16,7 +16,7 @@ export const state = {
   name: localStorage.getItem("gt.name") || "",
   color: pickColor(),
   avatar: localStorage.getItem("gt.avatar") || "default:mint",
-  channel: "team",
+  channel: "lounge", // recalculado ao escolher o mapa (applyMapToUi)
   users: new Map(),
   messages: [],
   speakingIds: new Set(),

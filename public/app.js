@@ -1,3 +1,13 @@
+// HZTown — orquestracao do cliente.
+// Organizacao do arquivo:
+//   1. Setup do mapa (tamanho do escritorio, cenario, rotulos, areas)
+//   2. Boot da UI (drawer, janelas flutuantes, dock, dialogo de entrada)
+//   3. Movimento com fisica (aceleracao + colisao) e presenca
+//   4. Eventos de socket (presenca, chat, reacoes)
+//   5. LiveKit (voz, camera, tela) e audio por proximidade
+//   6. Renderizacao (mapa, listas, chips de voz, paineis)
+//   7. Teste de microfone e preferencias (nome, skin, dispositivos)
+
 import {
   Room,
   RoomEvent,
@@ -6,21 +16,30 @@ import {
 import { applyAvatar, fileToAvatarDataUrl } from "./js/ui/avatarRenderer.js";
 import { renderChat, syncChatPanel } from "./js/features/chatPanel.js";
 import {
-  CHANNELS,
   MIC_TEST_TIMEOUT_MS,
-  PRIVATE_ROOMS,
   PROXIMITY,
   SCREEN_OPTIONS,
   SCREEN_SHARE_ENCODING,
-  SPACE_ROOM,
   audioOptions,
   cameraOptions
 } from "./js/core/appConfig.js";
+import {
+  BOUNDS,
+  MAPS,
+  MAP_ORDER,
+  activeMap,
+  activeMapId,
+  channelLabel,
+  channelTarget,
+  isBlocked,
+  roomFromPosition,
+  setActiveMap
+} from "./js/core/mapGeometry.js";
 import { els } from "./js/core/domElements.js";
 import { hydrateStaticIcons, setIcon } from "./js/ui/iconRenderer.js";
 import { notifyUserJoined } from "./js/ui/toastNotifications.js";
 import { registerServiceWorker } from "./js/features/pwaRegistration.js";
-import { initSettingsPanel, openSettings } from "./js/features/settingsPanel.js";
+import { initSettingsPanel } from "./js/features/settingsPanel.js";
 import { state } from "./js/core/appState.js";
 import { clamp } from "./js/shared/formattingValues.js";
 import {
@@ -30,12 +49,11 @@ import {
   startSpriteTicker
 } from "./js/ui/pixelSprites.js";
 import { paintMapScene } from "./js/ui/mapScene.js";
-import { BOUNDS, isBlocked } from "./js/core/mapGeometry.js";
+import { startSceneFx } from "./js/ui/sceneFx.js";
 import { createWindow } from "./js/ui/windowManager.js";
 import { initReactions } from "./js/features/reactions.js";
 import { showChatBubble } from "./js/features/chatBubbles.js";
 
-// Opcoes de captura que respeitam o dispositivo e a qualidade escolhidos nas configuracoes.
 function currentAudioOptions() {
   return audioOptions(state.devices.audioInput);
 }
@@ -44,13 +62,171 @@ function currentCameraOptions() {
   return cameraOptions(state.devices.quality, state.devices.videoInput);
 }
 
+// ---------------------------------------------------------------------------
+// 1. Setup do mapa (tamanho do escritorio)
+// ---------------------------------------------------------------------------
+
+const mapEls = new Map(); // userId -> elemento .map-avatar
+const remoteWalkTimers = new Map();
+const localPos = { x: 50, y: 50 };
+let areaButtons = [];
+
+setActiveMap(localStorage.getItem("hz.map") || "medium");
+applyMapToUi();
+
+// Repinta cenario, rotulos e areas do mapa ativo e reposiciona o spawn local.
+function applyMapToUi() {
+  const map = activeMap();
+  paintMapScene(els.floorCanvas, map);
+  renderRoomLabels(map);
+  renderAreaButtons(map);
+  localPos.x = map.spawn.x;
+  localPos.y = map.spawn.y;
+  state.channel = roomFromPosition(localPos.x, localPos.y) || "lounge";
+}
+
+function renderRoomLabels(map) {
+  els.roomLabels.innerHTML = "";
+  for (const room of map.rooms) {
+    const label = document.createElement("span");
+    label.className = "room-label";
+    label.textContent = room.label;
+    label.style.left = `${room.rect.x1 + 1.5}%`;
+    label.style.top = `${room.rect.y1 + 2.5}%`;
+    label.style.color = room.carpet.tint;
+    els.roomLabels.append(label);
+  }
+  const lounge = document.createElement("span");
+  lounge.className = "room-label";
+  lounge.textContent = map.lounge.label;
+  lounge.style.left = `${map.lounge.labelAt.x}%`;
+  lounge.style.top = `${map.lounge.labelAt.y}%`;
+  lounge.style.color = map.lounge.tint;
+  els.roomLabels.append(lounge);
+}
+
+function renderAreaButtons(map) {
+  els.areaList.innerHTML = "";
+  areaButtons = [];
+
+  const entries = [
+    ...map.rooms.map((room) => ({ id: room.id, label: room.label, hint: "Sala privada", icon: "#" })),
+    { id: map.lounge.id, label: map.lounge.label, hint: "Area aberta (proximidade)", icon: "~" }
+  ];
+
+  for (const entry of entries) {
+    const button = document.createElement("button");
+    button.className = "channel";
+    button.dataset.channel = entry.id;
+    button.innerHTML = "";
+
+    const icon = document.createElement("span");
+    icon.className = "channel-icon";
+    icon.textContent = entry.icon;
+
+    const text = document.createElement("span");
+    const name = document.createElement("span");
+    name.textContent = entry.label;
+    const hint = document.createElement("small");
+    hint.textContent = entry.hint;
+    text.append(name, hint);
+
+    button.append(icon, text);
+    button.addEventListener("click", () => {
+      setChannel(entry.id);
+      toggleDrawer(false);
+    });
+    els.areaList.append(button);
+    areaButtons.push(button);
+  }
+  renderChannels();
+}
+
+// Cards de tamanho no dialogo de entrada (com preview real do mapa).
+function buildSizePicker() {
+  els.sizePicker.innerHTML = "";
+  for (const id of MAP_ORDER) {
+    const map = MAPS[id];
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "size-card";
+    card.dataset.size = id;
+
+    const preview = document.createElement("canvas");
+    preview.className = "size-preview";
+    paintMapScene(preview, map);
+
+    const name = document.createElement("strong");
+    name.textContent = map.label;
+    const hint = document.createElement("small");
+    hint.textContent = map.tagline;
+
+    card.append(preview, name, hint);
+    card.addEventListener("click", () => selectMap(id));
+    els.sizePicker.append(card);
+  }
+  syncSizeSelection();
+}
+
+// Botoes compactos de troca no drawer (depois de entrar, troca recarregando).
+function buildOfficeSwitcher() {
+  els.officeSizes.innerHTML = "";
+  for (const id of MAP_ORDER) {
+    const map = MAPS[id];
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "office-size";
+    button.dataset.size = id;
+    button.innerHTML = "";
+
+    const name = document.createElement("strong");
+    name.textContent = map.label;
+    const hint = document.createElement("small");
+    hint.textContent = map.tagline;
+    button.append(name, hint);
+
+    button.addEventListener("click", () => {
+      if (id === activeMapId()) return;
+      localStorage.setItem("hz.map", id);
+      if (state.joined) {
+        // trocar de escritorio = trocar de espaco; recarregar e o caminho seguro
+        window.location.reload();
+      } else {
+        selectMap(id);
+      }
+    });
+    els.officeSizes.append(button);
+  }
+  syncSizeSelection();
+}
+
+function selectMap(id) {
+  if (state.joined) return; // depois de entrar, a troca e via reload
+  setActiveMap(id);
+  localStorage.setItem("hz.map", id);
+  applyMapToUi();
+  syncSizeSelection();
+}
+
+function syncSizeSelection() {
+  document.querySelectorAll(".size-card, .office-size").forEach((button) => {
+    button.classList.toggle("active", button.dataset.size === activeMapId());
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 2. Boot da UI
+// ---------------------------------------------------------------------------
+
 const socket = io();
 
 hydrateStaticIcons();
 registerServiceWorker();
-paintMapScene(els.floorCanvas);
 paintSkinOptions();
 startSpriteTicker();
+startSceneFx(els.fxCanvas);
+buildSizePicker();
+buildOfficeSwitcher();
 initReactions({
   socket,
   bar: els.reactionBar,
@@ -58,13 +234,20 @@ initReactions({
   getMapEl: (id) => mapEls.get(id)
 });
 
-// --- Janelas flutuantes (arrastaveis pelo cabecalho) ---
+// Janelas flutuantes (arrastaveis, minimizaveis para uma barrinha, persistidas).
 const chatWin = createWindow(els.chatWindow, {
   key: "chat",
   onToggle(open) {
     state.chatOpen = open;
     syncChatPanel();
     if (open) renderChat(true);
+    if (open && chatWin.isVisible()) clearUnread();
+  },
+  onMinToggle(min) {
+    if (!min) {
+      clearUnread();
+      renderChat(true);
+    }
   }
 });
 
@@ -76,6 +259,32 @@ const mediaWin = createWindow(els.mediaWindow, {
   }
 });
 
+// --- Mensagens nao lidas (estilo Meet): badge no botao e na barrinha ---
+let unreadCount = 0;
+
+function chatIsVisible() {
+  return chatWin.isVisible();
+}
+
+function bumpUnread() {
+  unreadCount += 1;
+  syncUnreadBadges();
+}
+
+function clearUnread() {
+  unreadCount = 0;
+  syncUnreadBadges();
+}
+
+function syncUnreadBadges() {
+  const label = unreadCount > 99 ? "99+" : String(unreadCount);
+  for (const badge of [els.chatBadge, els.chatWinBadge]) {
+    badge.textContent = label;
+    badge.hidden = unreadCount === 0;
+  }
+  els.chatWindow.classList.toggle("has-unread", unreadCount > 0);
+}
+
 // O chat comeca aberto apenas em telas largas; no celular o mapa domina.
 if (state.chatOpen && window.innerWidth > 960) {
   chatWin.open();
@@ -84,7 +293,7 @@ if (state.chatOpen && window.innerWidth > 960) {
   syncChatPanel();
 }
 
-// --- Drawer esquerdo (menu hamburguer) ---
+// Drawer esquerdo (menu hamburguer).
 function toggleDrawer(open = !els.sideDrawer.classList.contains("open")) {
   els.sideDrawer.classList.toggle("open", open);
   els.menuButton.classList.toggle("active", open);
@@ -114,23 +323,25 @@ if (typeof els.joinDialog.showModal === "function") {
 }
 
 els.joinForm.addEventListener("submit", () => {
+  const map = activeMap();
   const name = els.nameInput.value.trim() || "Convidado";
   state.name = name;
   state.joined = true;
   localStorage.setItem("gt.name", name);
   syncSelfPanel();
   socket.emit("space:join", {
-    spaceId: "tec-hq",
+    spaceId: map.spaceId,
     name,
     color: state.color,
     avatar: state.avatar,
-    x: CHANNELS.team.x,
-    y: CHANNELS.team.y,
+    x: localPos.x,
+    y: localPos.y,
     channel: state.channel
   });
   setTimeout(() => els.floorPlan.focus(), 50);
 });
 
+// Dock de chamada.
 els.voiceButton.addEventListener("click", () => {
   if (state.livekitRoom) {
     leaveVoice();
@@ -139,9 +350,9 @@ els.voiceButton.addEventListener("click", () => {
   }
 });
 
-els.muteButton.addEventListener("click", () => {
-  toggleMute();
-});
+els.muteButton.addEventListener("click", () => toggleMute());
+els.cameraButton.addEventListener("click", () => toggleCamera());
+els.screenButton.addEventListener("click", () => toggleScreenShare());
 
 els.micTestButton.addEventListener("click", () => {
   if (state.micTest) {
@@ -149,41 +360,65 @@ els.micTestButton.addEventListener("click", () => {
   } else {
     startMicTest();
   }
-  closeMoreMenu();
 });
 
-els.cameraButton.addEventListener("click", () => {
-  toggleCamera();
-});
-
-els.screenButton.addEventListener("click", () => {
-  toggleScreenShare();
-  closeMoreMenu();
-});
-
+// Botoes de janelas (HUD direito). Se a janela esta minimizada, o botao
+// restaura em vez de fechar (comportamento estilo Meet).
 els.chatButton.addEventListener("click", () => {
-  state.chatOpen = !state.chatOpen;
-  syncChatPanel();
-  closeMoreMenu();
+  if (!state.chatOpen) {
+    chatWin.open();
+  } else if (chatWin.isMinimized()) {
+    chatWin.restore();
+  } else {
+    chatWin.close();
+  }
 });
 
-els.moreButton.addEventListener("click", (event) => {
-  event.stopPropagation();
-  toggleMoreMenu();
+els.mediaButton.addEventListener("click", () => {
+  if (!mediaWin.isOpen()) {
+    mediaWin.open();
+  } else if (mediaWin.isMinimized()) {
+    mediaWin.restore();
+  } else {
+    mediaWin.close();
+  }
 });
 
+// Atalhos globais estilo Meet: Ctrl+D alterna o mic, Ctrl+E alterna a camera.
+document.addEventListener("keydown", (event) => {
+  if (!event.ctrlKey || event.altKey || event.metaKey || !state.selfId) return;
+  const key = event.key.toLowerCase();
+  if (key === "d") {
+    event.preventDefault();
+    if (state.livekitRoom) toggleMute();
+  } else if (key === "e") {
+    event.preventDefault();
+    toggleCamera();
+  }
+});
+
+// Duplo clique num video/tela alterna tela cheia (estilo Meet).
+els.mediaGrid.addEventListener("dblclick", (event) => {
+  const tile = event.target.closest(".media-tile");
+  if (!tile) return;
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  } else {
+    tile.requestFullscreen?.().catch(() => {});
+  }
+});
+
+// Chat.
 els.chatForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const text = els.chatInput.value.trim();
   if (!text || !state.selfId) return;
 
-  socket.emit("chat:send", {
-    channel: state.channel,
-    text
-  });
+  socket.emit("chat:send", { channel: state.channel, text });
   els.chatInput.value = "";
 });
 
+// Skins do dialogo de entrada.
 els.skinButtons.forEach((button) => {
   button.addEventListener("click", () => {
     setAvatar(button.dataset.avatar || "default:mint");
@@ -204,36 +439,32 @@ els.avatarInput.addEventListener("change", async () => {
   }
 });
 
-document.addEventListener("click", (event) => {
-  if (!els.moreMenu.classList.contains("open")) return;
-  if (els.moreMenu.contains(event.target) || els.moreButton.contains(event.target)) return;
-  closeMoreMenu();
-});
+// ---------------------------------------------------------------------------
+// 3. Movimento com fisica (aceleracao, atrito e colisao com o cenario)
+// ---------------------------------------------------------------------------
 
-els.channelButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    setChannel(button.dataset.channel);
-  });
-});
-
-// --- Movimento fluido estilo Gather Town ---
 const KEY_DIRECTIONS = {
   ArrowUp: "up", w: "up", W: "up",
   ArrowDown: "down", s: "down", S: "down",
   ArrowLeft: "left", a: "left", A: "left",
   ArrowRight: "right", d: "right", D: "right"
 };
-const MOVE_SPEED = 0.42; // % do mapa por frame (~25%/s)
+
+const PHYSICS = {
+  accel: 0.18, // fracao da velocidade-alvo incorporada por frame
+  maxSpeed: 0.52, // % do mapa por frame (~31%/s)
+  friction: 0.76, // fator de desaceleracao por frame sem input
+  stopSpeed: 0.02 // abaixo disso consideramos parado
+};
 const EMIT_INTERVAL = 90; // ms entre updates de rede
-const PROXIMITY_RADIUS = 16; // raio (em %) para destacar quem esta perto
+
 const heldDirections = new Set();
-const mapEls = new Map();
-const remoteWalkTimers = new Map();
-const localPos = { x: CHANNELS.team.x, y: CHANNELS.team.y };
+const velocity = { x: 0, y: 0 };
 let moveTarget = null;
+let stallFrames = 0;
 let moveRAF = null;
 let lastMoveEmit = 0;
-let facing = "down"; // direcao do sprite (down/left/right/up)
+let facing = "down";
 
 els.floorPlan.addEventListener("keydown", (event) => {
   const dir = KEY_DIRECTIONS[event.key];
@@ -261,10 +492,155 @@ els.floorPlan.addEventListener("pointerdown", (event) => {
   const rect = els.floorPlan.getBoundingClientRect();
   const x = ((event.clientX - rect.left) / rect.width) * 100;
   const y = ((event.clientY - rect.top) / rect.height) * 100;
-  moveTarget = { x: clamp(x, 8, 92), y: clamp(y, 12, 88) };
+  moveTarget = {
+    x: clamp(x, BOUNDS.x1, BOUNDS.x2),
+    y: clamp(y, BOUNDS.y1, BOUNDS.y2)
+  };
+  stallFrames = 0;
   startMoveLoop();
   els.floorPlan.focus();
 });
+
+function startMoveLoop() {
+  if (moveRAF) return;
+  let last = performance.now();
+
+  const step = (now) => {
+    const dt = Math.min(2.5, (now - last) / 16.67); // fator de frame (cap p/ travadas)
+    last = now;
+
+    // 1) direcao-alvo a partir do input (teclado ou clique)
+    let tx = 0;
+    let ty = 0;
+    if (heldDirections.size) {
+      if (heldDirections.has("up")) ty -= 1;
+      if (heldDirections.has("down")) ty += 1;
+      if (heldDirections.has("left")) tx -= 1;
+      if (heldDirections.has("right")) tx += 1;
+    } else if (moveTarget) {
+      const dx = moveTarget.x - localPos.x;
+      const dy = moveTarget.y - localPos.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance < 1.2) {
+        moveTarget = null; // chegou
+      } else {
+        tx = dx / distance;
+        ty = dy / distance;
+      }
+    }
+
+    // 2) fisica: acelera na direcao-alvo ou desacelera por atrito
+    const norm = Math.hypot(tx, ty);
+    if (norm > 0) {
+      const blend = 1 - Math.pow(1 - PHYSICS.accel, dt);
+      velocity.x += ((tx / norm) * PHYSICS.maxSpeed - velocity.x) * blend;
+      velocity.y += ((ty / norm) * PHYSICS.maxSpeed - velocity.y) * blend;
+    } else {
+      const drag = Math.pow(PHYSICS.friction, dt);
+      velocity.x *= drag;
+      velocity.y *= drag;
+    }
+
+    // 3) integra por eixo com colisao (permite deslizar ao longo das paredes)
+    const prevX = localPos.x;
+    const prevY = localPos.y;
+    const nx = clamp(localPos.x + velocity.x * dt, BOUNDS.x1, BOUNDS.x2);
+    if (isBlocked(nx, localPos.y)) {
+      velocity.x = 0;
+    } else {
+      localPos.x = nx;
+    }
+    const ny = clamp(localPos.y + velocity.y * dt, BOUNDS.y1, BOUNDS.y2);
+    if (isBlocked(localPos.x, ny)) {
+      velocity.y = 0;
+    } else {
+      localPos.y = ny;
+    }
+
+    const speed = Math.hypot(velocity.x, velocity.y);
+    const movedDist = Math.hypot(localPos.x - prevX, localPos.y - prevY);
+
+    // clique atras de uma parede: cancela o destino se ficou preso
+    if (moveTarget && movedDist < 0.02 * dt) {
+      stallFrames += dt;
+      if (stallFrames > 26) moveTarget = null; // ~0.45s sem progresso
+    } else {
+      stallFrames = 0;
+    }
+
+    if (speed > PHYSICS.stopSpeed) {
+      facing = Math.abs(velocity.x) > Math.abs(velocity.y)
+        ? (velocity.x < 0 ? "left" : "right")
+        : (velocity.y < 0 ? "up" : "down");
+      applySelfPosition();
+      setWalking(movedDist > 0.01);
+      if (now - lastMoveEmit >= EMIT_INTERVAL) emitPosition(now);
+    }
+
+    if (heldDirections.size || moveTarget || speed > PHYSICS.stopSpeed) {
+      moveRAF = requestAnimationFrame(step);
+    } else {
+      moveRAF = null;
+      velocity.x = 0;
+      velocity.y = 0;
+      setWalking(false);
+      emitPosition(now);
+    }
+  };
+
+  moveRAF = requestAnimationFrame(step);
+}
+
+function setWalking(walking) {
+  const el = mapEls.get(state.selfId);
+  if (el) setSpritePose(el, facing, walking);
+}
+
+function applySelfPosition() {
+  const self = state.users.get(state.selfId);
+  if (self) {
+    self.x = localPos.x;
+    self.y = localPos.y;
+  }
+  const el = mapEls.get(state.selfId);
+  if (el) {
+    el.style.left = `${localPos.x}%`;
+    el.style.top = `${localPos.y}%`;
+  }
+  els.proximityZone.style.left = `${localPos.x}%`;
+  els.proximityZone.style.top = `${localPos.y}%`;
+  scheduleProximity(false);
+}
+
+function emitPosition(now = performance.now()) {
+  lastMoveEmit = now;
+  // O canal de chat acompanha a area onde voce esta.
+  const channel = chatChannelFromPosition(localPos.x, localPos.y);
+  if (channel !== state.channel) {
+    state.channel = channel;
+    renderChannels();
+    renderChat();
+  }
+  socket.emit("presence:update", { x: localPos.x, y: localPos.y, channel: state.channel });
+}
+
+// Clicar numa area do drawer faz o avatar caminhar ate la.
+function setChannel(channel) {
+  const target = channelTarget(channel);
+  if (!target || !state.selfId) return;
+  moveTarget = { x: target.x, y: target.y };
+  stallFrames = 0;
+  startMoveLoop();
+  els.floorPlan.focus();
+}
+
+function chatChannelFromPosition(x, y) {
+  return roomFromPosition(x, y) || "lounge";
+}
+
+// ---------------------------------------------------------------------------
+// 4. Eventos de socket
+// ---------------------------------------------------------------------------
 
 socket.on("space:ready", ({ selfId, users, messages = [] }) => {
   state.selfId = selfId;
@@ -293,31 +669,6 @@ socket.on("presence:updated", (user) => {
   animateRemoteWalk(user, previous);
 });
 
-// Anima o sprite de quem se move remotamente: direcao pelo delta de posicao
-// e um timer curto que devolve a pose parada quando os updates cessam.
-function animateRemoteWalk(user, previous) {
-  if (!previous || user.id === state.selfId) return;
-
-  const dx = user.x - previous.x;
-  const dy = user.y - previous.y;
-  if (Math.hypot(dx, dy) < 0.05) return;
-
-  const el = mapEls.get(user.id);
-  if (!el) return;
-
-  const dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? "left" : "right") : (dy < 0 ? "up" : "down");
-  setSpritePose(el, dir, true);
-  clearTimeout(remoteWalkTimers.get(user.id));
-  remoteWalkTimers.set(
-    user.id,
-    setTimeout(() => {
-      const mapEl = mapEls.get(user.id);
-      if (mapEl) setSpritePose(mapEl, dir, false);
-      remoteWalkTimers.delete(user.id);
-    }, 260)
-  );
-}
-
 socket.on("presence:self", (user) => {
   // O cliente e a autoridade sobre a propria posicao e canal; preservamos o estado local.
   state.users.set(state.selfId, {
@@ -343,7 +694,40 @@ socket.on("chat:message", (message) => {
   }
   renderChat(true);
   showChatBubble(mapEls.get(message.userId), message.userId, message.text);
+  // conta como nao lida se o chat nao esta visivel (fechado ou na barrinha)
+  if (message.userId !== state.selfId && !chatIsVisible()) {
+    bumpUnread();
+  }
 });
+
+// Anima o sprite de quem se move remotamente: direcao pelo delta de posicao
+// e um timer curto que devolve a pose parada quando os updates cessam.
+function animateRemoteWalk(user, previous) {
+  if (!previous || user.id === state.selfId) return;
+
+  const dx = user.x - previous.x;
+  const dy = user.y - previous.y;
+  if (Math.hypot(dx, dy) < 0.05) return;
+
+  const el = mapEls.get(user.id);
+  if (!el) return;
+
+  const dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? "left" : "right") : (dy < 0 ? "up" : "down");
+  setSpritePose(el, dir, true);
+  clearTimeout(remoteWalkTimers.get(user.id));
+  remoteWalkTimers.set(
+    user.id,
+    setTimeout(() => {
+      const mapEl = mapEls.get(user.id);
+      if (mapEl) setSpritePose(mapEl, dir, false);
+      remoteWalkTimers.delete(user.id);
+    }, 260)
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 5. LiveKit (voz, camera, tela) e audio por proximidade
+// ---------------------------------------------------------------------------
 
 async function joinVoice() {
   if (!state.selfId || state.busy) return;
@@ -450,7 +834,8 @@ async function toggleScreenShare() {
 }
 
 async function connectLiveKitRoom() {
-  if (state.livekitRoom && state.livekitRoomName === SPACE_ROOM) {
+  const roomName = activeMap().livekitRoom;
+  if (state.livekitRoom && state.livekitRoomName === roomName) {
     return state.livekitRoom;
   }
 
@@ -473,9 +858,9 @@ async function connectLiveKitRoom() {
 
   bindLiveKitRoom(room);
   state.livekitRoom = room;
-  state.livekitRoomName = SPACE_ROOM;
+  state.livekitRoomName = roomName;
 
-  const credentials = await getLiveKitCredentials(SPACE_ROOM);
+  const credentials = await getLiveKitCredentials(roomName);
   await room.connect(credentials.url, credentials.token, {
     autoSubscribe: true,
     maxRetries: 2,
@@ -653,6 +1038,9 @@ function mountMediaTrack(track, publication, participant, forceLocal = false) {
   state.mediaElements.set(key, { key, identity, kind: "video", track, tile, element: video });
   renderMediaEmptyState();
   updateProximityAudio();
+  // video novo -> janela aparece (e sai da barrinha) sozinha, estilo Meet
+  mediaWin.open();
+  mediaWin.restore();
 }
 
 function removeMediaTrack(track, publication, participant) {
@@ -708,7 +1096,7 @@ function mediaCaption(participant, publication, isLocal) {
 }
 
 function renderMediaLabels() {
-  for (const [key, mounted] of state.mediaElements) {
+  for (const [, mounted] of state.mediaElements) {
     const tile = mounted.tile;
     if (!tile) continue;
 
@@ -762,114 +1150,6 @@ function sourceLabel(source) {
   if (source === Track.Source.ScreenShare) return "Tela";
   if (source === Track.Source.ScreenShareAudio) return "Audio da tela";
   return "Midia";
-}
-
-// Clicar numa area da lateral faz o avatar caminhar ate la (o canal/zona segue a posicao).
-function setChannel(channel) {
-  const target = CHANNELS[channel];
-  if (!target || !state.selfId) return;
-  moveTarget = { x: target.x, y: target.y };
-  startMoveLoop();
-  els.floorPlan.focus();
-}
-
-// Sala privada onde a posicao se encontra (ou null se em area aberta).
-function roomFromPosition(x, y) {
-  for (const [name, r] of Object.entries(PRIVATE_ROOMS)) {
-    if (x >= r.x1 && x <= r.x2 && y >= r.y1 && y <= r.y2) return name;
-  }
-  return null;
-}
-
-// Canal de chat associado a posicao (sala privada ou "lounge" da area aberta).
-function chatChannelFromPosition(x, y) {
-  return roomFromPosition(x, y) || "lounge";
-}
-
-function startMoveLoop() {
-  if (moveRAF) return;
-  let last = performance.now();
-
-  const step = (now) => {
-    const dt = Math.min(2.5, (now - last) / 16.67); // fator de frame (cap p/ travadas)
-    last = now;
-    let moved = false;
-
-    if (heldDirections.size) {
-      const dist = MOVE_SPEED * dt;
-      if (heldDirections.has("up")) { localPos.y -= dist; moved = true; }
-      if (heldDirections.has("down")) { localPos.y += dist; moved = true; }
-      if (heldDirections.has("left")) { localPos.x -= dist; moved = true; }
-      if (heldDirections.has("right")) { localPos.x += dist; moved = true; }
-    } else if (moveTarget) {
-      const dx = moveTarget.x - localPos.x;
-      const dy = moveTarget.y - localPos.y;
-      const distance = Math.hypot(dx, dy);
-      const stepDist = MOVE_SPEED * 1.7 * dt;
-      facing = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? "left" : "right") : (dy < 0 ? "up" : "down");
-      if (distance <= stepDist) {
-        localPos.x = moveTarget.x;
-        localPos.y = moveTarget.y;
-        moveTarget = null;
-      } else {
-        localPos.x += (dx / distance) * stepDist;
-        localPos.y += (dy / distance) * stepDist;
-      }
-      moved = true;
-    }
-
-    if (moved) {
-      localPos.x = clamp(localPos.x, 8, 92);
-      localPos.y = clamp(localPos.y, 12, 88);
-      applySelfPosition();
-      setWalking(true);
-      if (now - lastMoveEmit >= EMIT_INTERVAL) emitPosition(now);
-    }
-
-    if (heldDirections.size || moveTarget) {
-      moveRAF = requestAnimationFrame(step);
-    } else {
-      moveRAF = null;
-      setWalking(false);
-      emitPosition(now);
-    }
-  };
-
-  setWalking(true);
-  moveRAF = requestAnimationFrame(step);
-}
-
-function setWalking(walking) {
-  const el = mapEls.get(state.selfId);
-  if (el) setSpritePose(el, facing, walking);
-}
-
-function applySelfPosition() {
-  const self = state.users.get(state.selfId);
-  if (self) {
-    self.x = localPos.x;
-    self.y = localPos.y;
-  }
-  const el = mapEls.get(state.selfId);
-  if (el) {
-    el.style.left = `${localPos.x}%`;
-    el.style.top = `${localPos.y}%`;
-  }
-  els.proximityZone.style.left = `${localPos.x}%`;
-  els.proximityZone.style.top = `${localPos.y}%`;
-  scheduleProximity(false);
-}
-
-function emitPosition(now = performance.now()) {
-  lastMoveEmit = now;
-  // O canal de chat acompanha a area onde voce esta.
-  const channel = chatChannelFromPosition(localPos.x, localPos.y);
-  if (channel !== state.channel) {
-    state.channel = channel;
-    renderChannels();
-    renderChat();
-  }
-  socket.emit("presence:update", { x: localPos.x, y: localPos.y, channel: state.channel });
 }
 
 // Volume relativo (0..1) de um usuario para mim: salas privadas isolam, area aberta usa distancia.
@@ -946,18 +1226,9 @@ function setConnectionStatus(label) {
   els.connectionStatus.textContent = label;
 }
 
-function toggleMoreMenu() {
-  const open = !els.moreMenu.classList.contains("open");
-  els.moreMenu.classList.toggle("open", open);
-  els.moreButton.classList.toggle("active", open);
-  els.moreButton.setAttribute("aria-expanded", String(open));
-}
-
-function closeMoreMenu() {
-  els.moreMenu.classList.remove("open");
-  els.moreButton.classList.remove("active");
-  els.moreButton.setAttribute("aria-expanded", "false");
-}
+// ---------------------------------------------------------------------------
+// 6. Renderizacao
+// ---------------------------------------------------------------------------
 
 function render() {
   renderChannels();
@@ -969,19 +1240,10 @@ function render() {
 }
 
 function renderChannels() {
-  els.channelButtons.forEach((button) => {
+  areaButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.channel === state.channel);
   });
-
-  const channel = CHANNELS[state.channel];
-  const inRoom = Boolean(roomFromPosition(localPos.x, localPos.y));
-  els.voiceTitle.textContent = channel?.label || "Espaco";
-  els.voiceSubtitle.textContent = !state.livekitRoom
-    ? "Entre no espaco para falar por proximidade com quem estiver perto."
-    : inRoom
-      ? `Sala ${channel?.label}: todos aqui dentro se ouvem em volume cheio.`
-      : "Area aberta: voce ouve quem esta perto e o volume cai com a distancia.";
-  els.chatChannelLabel.textContent = channel?.label || "Espaco";
+  els.chatChannelLabel.textContent = channelLabel(state.channel);
 }
 
 function renderOnlineList() {
@@ -1005,22 +1267,15 @@ function renderOnlineList() {
   }
 }
 
+// Chips de "quem voce ouve agora" flutuando no topo do mapa.
 function renderVoiceStrip() {
   els.voiceTiles.innerHTML = "";
   const myRoom = roomFromPosition(localPos.x, localPos.y);
-  // Quem voce realmente ouve agora (mesma sala privada ou dentro do alcance de proximidade).
   const users = Array.from(state.users.values()).filter(
     (user) => user.inVoice && user.id !== state.selfId && audibility(user, myRoom) > 0
   );
 
-  if (users.length === 0) {
-    const empty = document.createElement("small");
-    empty.textContent = state.livekitRoom
-      ? "Ninguem por perto. Aproxime-se de alguem para conversar."
-      : "Entre no espaco para ouvir quem esta perto.";
-    els.voiceTiles.append(empty);
-    return;
-  }
+  els.voiceTiles.classList.toggle("empty", users.length === 0);
 
   for (const user of users) {
     const tile = document.createElement("div");
@@ -1102,7 +1357,6 @@ function syncSelfPanel() {
   setIcon(els.screenIcon, state.screenOn ? "monitor" : "monitor-off");
   els.muteButton.classList.toggle("active", state.livekitRoom && !state.muted);
   els.muteButton.classList.toggle("inactive", state.livekitRoom && state.muted);
-  els.micTestButton.classList.toggle("active", Boolean(state.micTest));
   els.cameraButton.classList.toggle("active", state.cameraOn);
   els.cameraButton.classList.toggle("inactive", state.livekitRoom && !state.cameraOn);
   els.screenButton.classList.toggle("active", state.screenOn);
@@ -1116,6 +1370,10 @@ function syncSpeakingIndicators() {
     avatar.classList.toggle("speaking", state.speakingIds.has(avatar.dataset.identity));
   });
 }
+
+// ---------------------------------------------------------------------------
+// 7. Teste de microfone e preferencias
+// ---------------------------------------------------------------------------
 
 async function startMicTest() {
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -1147,6 +1405,7 @@ async function startMicTest() {
     };
 
     els.micTestButton.classList.add("active");
+    els.micTestButton.textContent = "Parar teste";
     setMicStatus("Fale agora...", 0);
 
     const tick = () => {
@@ -1203,6 +1462,8 @@ function stopMicTest(status = "Teste encerrado") {
   micTest?.stream?.getTracks().forEach((track) => track.stop());
   micTest?.audioContext?.close();
 
+  els.micTestButton.classList.remove("active");
+  els.micTestButton.textContent = "Testar microfone";
   setMicStatus(status, 0);
   syncSelfPanel();
 }

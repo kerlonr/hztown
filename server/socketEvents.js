@@ -3,7 +3,8 @@ import { sanitizeAvatar, sanitizeName, sanitizeSpaceId, sanitizeText } from "./s
 import { publicUser } from "./spaceStore.js";
 
 const MESSAGE_LIMIT = 120;
-const ALLOWED_CHANNELS = new Set(["team", "daily", "focus", "lounge"]);
+// Uniao das salas de todos os tamanhos de escritorio (ver public/js/core/mapGeometry.js).
+const ALLOWED_CHANNELS = new Set(["lounge", "team", "daily", "focus", "meet", "dev", "design", "war"]);
 const ALLOWED_REACTIONS = new Set(["👋", "❤️", "😂", "🎉", "👍", "🔥"]);
 
 // Limites simples por socket para conter flood de eventos.
@@ -38,9 +39,9 @@ export function registerSocketHandlers(io, store) {
 
     socket.on("space:join", (profile) => {
       if (currentSpaceId) return; // ja entrou neste socket
-      currentSpaceId = sanitizeSpaceId(profile?.spaceId, "tec-hq");
+      currentSpaceId = sanitizeSpaceId(profile?.spaceId, "hz-medium");
       const space = store.getSpace(currentSpaceId);
-      const channel = ALLOWED_CHANNELS.has(profile?.channel) ? profile.channel : "team";
+      const channel = ALLOWED_CHANNELS.has(profile?.channel) ? profile.channel : "lounge";
       const user = {
         id: socket.id,
         name: sanitizeName(profile?.name),
