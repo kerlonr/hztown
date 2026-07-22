@@ -6,10 +6,11 @@ export const FRAME_W = 16;
 export const FRAME_H = 22;
 export const SPRITE_SCALE = 3;
 
-const COLS = 3; // 0 = parado, 1 e 2 = passos da caminhada
+const COLS = 4; // 0 = parado, 1 e 2 = passos da caminhada, 3 = piscando/respirando
 const ROWS = 4; // down, left, right, up
 const DIR_ROW = { down: 0, left: 1, right: 2, up: 3 };
 const WALK_CYCLE = [1, 0, 2, 0]; // pisa, junta, pisa com a outra perna, junta
+const BLINK_PERIOD = 26; // ticks entre piscadas (~3.4s); cada el tem um offset proprio
 
 export const PALETTES = {
   "default:mint": {
@@ -52,9 +53,11 @@ function px(g, x, y, w, h, color) {
 }
 
 // Desenha um quadro do personagem em (0,0). dir: down|right|up (left e espelhado).
+// frame 3 = "respirando": corpo abaixa 1px e os olhos fecham (piscada).
 function drawFrame(g, p, dir, frame) {
-  const stepping = frame !== 0;
-  const bob = stepping ? 1 : 0; // corpo "quica" 1px durante o passo
+  const blink = frame === 3;
+  const stepping = frame === 1 || frame === 2;
+  const bob = stepping || blink ? 1 : 0; // corpo "quica" 1px no passo e na respiracao
 
   // ----- pernas -----
   if (dir === "right") {
@@ -119,8 +122,8 @@ function drawFrame(g, p, dir, frame) {
     px(g, 4, 1 + bob, 8, 3, p.hair);
     px(g, 3, 2 + bob, 2, 6, p.hair);
     px(g, 4, 1 + bob, 8, 1, p.hairDark);
-    // um olho so (perfil)
-    px(g, 10, 6 + bob, 1, 1, EYES);
+    // um olho so (perfil); fechado na piscada
+    px(g, 10, 6 + bob, 1, 1, blink ? p.skinDark : EYES);
   } else {
     // frente
     px(g, 4, 3 + bob, 8, 6, p.skin);
@@ -130,8 +133,9 @@ function drawFrame(g, p, dir, frame) {
     px(g, 3, 2 + bob, 1, 4, p.hair);
     px(g, 12, 2 + bob, 1, 4, p.hair);
     px(g, 4, 1 + bob, 8, 1, p.hairDark);
-    px(g, 6, 6 + bob, 1, 1, EYES);
-    px(g, 9, 6 + bob, 1, 1, EYES);
+    // olhos abertos (ou fechados na piscada)
+    px(g, 6, 6 + bob, 1, 1, blink ? p.skinDark : EYES);
+    px(g, 9, 6 + bob, 1, 1, blink ? p.skinDark : EYES);
   }
 }
 
@@ -213,6 +217,8 @@ export function applyMapSprite(el, user) {
   el.style.backgroundImage = `url("${sheet.url}")`;
   el.style.backgroundSize = `${COLS * FRAME_W * SPRITE_SCALE}px ${ROWS * FRAME_H * SPRITE_SCALE}px`;
   if (!el.dataset.dir) el.dataset.dir = "down";
+  // offset aleatorio para as piscadas nao ficarem sincronizadas entre avatares
+  if (!el.dataset.blinkSeed) el.dataset.blinkSeed = String(Math.floor(Math.random() * BLINK_PERIOD));
   paintPose(el);
 }
 
@@ -232,19 +238,35 @@ export function setSpritePose(el, dir, walking) {
 function paintPose(el) {
   const row = DIR_ROW[el.dataset.dir] ?? 0;
   const phase = Number(el.dataset.phase || 0);
-  const frame = el.classList.contains("walking") ? WALK_CYCLE[phase % WALK_CYCLE.length] : 0;
+  const frame = el.classList.contains("walking")
+    ? WALK_CYCLE[phase % WALK_CYCLE.length]
+    : el.dataset.blink === "1"
+      ? 3
+      : 0;
   el.style.backgroundPosition =
     `-${frame * FRAME_W * SPRITE_SCALE}px -${row * FRAME_H * SPRITE_SCALE}px`;
 }
 
-// Ticker global: avanca os quadros de quem esta caminhando (8 fps ~ retro).
+// Ticker global (~8 fps retro): avanca a caminhada de quem anda e faz quem
+// esta parado piscar/respirar de vez em quando.
 let tickerId = null;
+let tick = 0;
 export function startSpriteTicker() {
   if (tickerId) return;
   tickerId = window.setInterval(() => {
-    document.querySelectorAll(".map-avatar.pix.walking").forEach((el) => {
-      el.dataset.phase = String((Number(el.dataset.phase || 0) + 1) % WALK_CYCLE.length);
-      paintPose(el);
+    tick += 1;
+    document.querySelectorAll(".map-avatar.pix").forEach((el) => {
+      if (el.classList.contains("walking")) {
+        el.dataset.phase = String((Number(el.dataset.phase || 0) + 1) % WALK_CYCLE.length);
+        paintPose(el);
+        return;
+      }
+      const seed = Number(el.dataset.blinkSeed || 0);
+      const blinking = (tick + seed) % BLINK_PERIOD < 2; // ~260ms de olhos fechados
+      if ((el.dataset.blink === "1") !== blinking) {
+        el.dataset.blink = blinking ? "1" : "0";
+        paintPose(el);
+      }
     });
   }, 130);
 }

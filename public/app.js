@@ -30,6 +30,8 @@ import {
   startSpriteTicker
 } from "./js/ui/pixelSprites.js";
 import { paintMapScene } from "./js/ui/mapScene.js";
+import { BOUNDS, isBlocked } from "./js/core/mapGeometry.js";
+import { createWindow } from "./js/ui/windowManager.js";
 import { initReactions } from "./js/features/reactions.js";
 import { showChatBubble } from "./js/features/chatBubbles.js";
 
@@ -55,6 +57,42 @@ initReactions({
   floorPlan: els.floorPlan,
   getMapEl: (id) => mapEls.get(id)
 });
+
+// --- Janelas flutuantes (arrastaveis pelo cabecalho) ---
+const chatWin = createWindow(els.chatWindow, {
+  key: "chat",
+  onToggle(open) {
+    state.chatOpen = open;
+    syncChatPanel();
+    if (open) renderChat(true);
+  }
+});
+
+const mediaWin = createWindow(els.mediaWindow, {
+  key: "media",
+  onToggle(open) {
+    els.mediaButton.classList.toggle("active", open);
+    els.mediaButton.setAttribute("aria-pressed", String(open));
+  }
+});
+
+// O chat comeca aberto apenas em telas largas; no celular o mapa domina.
+if (state.chatOpen && window.innerWidth > 960) {
+  chatWin.open();
+} else {
+  state.chatOpen = false;
+  syncChatPanel();
+}
+
+// --- Drawer esquerdo (menu hamburguer) ---
+function toggleDrawer(open = !els.sideDrawer.classList.contains("open")) {
+  els.sideDrawer.classList.toggle("open", open);
+  els.menuButton.classList.toggle("active", open);
+  els.menuButton.setAttribute("aria-expanded", String(open));
+}
+
+els.menuButton.addEventListener("click", () => toggleDrawer());
+els.drawerClose.addEventListener("click", () => toggleDrawer(false));
 
 initSettingsPanel({
   onName: applyName,

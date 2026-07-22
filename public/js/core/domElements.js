@@ -1,48 +1,61 @@
+// Referencias de DOM centralizadas. Mantidas num unico lugar para que a
+// estrutura do index.html possa mudar sem cacar querySelector pelo codigo.
 export const els = {
+  // entrada
   joinDialog: document.querySelector("#joinDialog"),
   joinForm: document.querySelector("#joinForm"),
   nameInput: document.querySelector("#nameInput"),
+
+  // drawer esquerdo (menu)
+  menuButton: document.querySelector("#menuButton"),
+  sideDrawer: document.querySelector("#sideDrawer"),
+  drawerClose: document.querySelector("#drawerClose"),
   selfAvatar: document.querySelector("#selfAvatar"),
   selfName: document.querySelector("#selfName"),
   selfStatus: document.querySelector("#selfStatus"),
   onlineList: document.querySelector("#onlineList"),
+  channelButtons: Array.from(document.querySelectorAll(".channel")),
+
+  // HUD e dock
+  connectionStatus: document.querySelector("#connectionStatus"),
+  voiceTiles: document.querySelector("#voiceTiles"),
   voiceButton: document.querySelector("#voiceButton"),
   voiceIcon: document.querySelector("#voiceIcon"),
   muteButton: document.querySelector("#muteButton"),
   muteIcon: document.querySelector("#muteIcon"),
-  micTestButton: document.querySelector("#micTestButton"),
   cameraButton: document.querySelector("#cameraButton"),
   cameraIcon: document.querySelector("#cameraIcon"),
   screenButton: document.querySelector("#screenButton"),
   screenIcon: document.querySelector("#screenIcon"),
-  chatButton: document.querySelector("#chatButton"),
   settingsButton: document.querySelector("#settingsButton"),
-  moreButton: document.querySelector("#moreButton"),
-  moreMenu: document.querySelector("#moreMenu"),
-  connectionStatus: document.querySelector("#connectionStatus"),
-  micMeter: document.querySelector("#micMeter"),
-  micMeterBar: document.querySelector("#micMeterBar"),
-  micStatus: document.querySelector("#micStatus"),
-  voiceTitle: document.querySelector("#voiceTitle"),
-  voiceSubtitle: document.querySelector("#voiceSubtitle"),
-  voiceTiles: document.querySelector("#voiceTiles"),
-  workspaceBody: document.querySelector(".workspace-body"),
-  mediaGrid: document.querySelector("#mediaGrid"),
+  chatButton: document.querySelector("#chatButton"),
+  mediaButton: document.querySelector("#mediaButton"),
+  reactionBar: document.querySelector("#reactionBar"),
+
+  // mapa
   floorPlan: document.querySelector("#floorPlan"),
   floorCanvas: document.querySelector("#floorCanvas"),
-  reactionBar: document.querySelector("#reactionBar"),
   avatarsLayer: document.querySelector("#avatarsLayer"),
   proximityZone: document.querySelector("#proximityZone"),
-  audioMount: document.querySelector("#audioMount"),
-  toastStack: document.querySelector("#toastStack"),
-  chatPanel: document.querySelector("#chatPanel"),
+
+  // janelas flutuantes
+  chatWindow: document.querySelector("#chatWindow"),
   chatMessages: document.querySelector("#chatMessages"),
   chatForm: document.querySelector("#chatForm"),
   chatInput: document.querySelector("#chatInput"),
   chatChannelLabel: document.querySelector("#chatChannelLabel"),
+  mediaWindow: document.querySelector("#mediaWindow"),
+  mediaGrid: document.querySelector("#mediaGrid"),
+
+  // midia/toasts
+  audioMount: document.querySelector("#audioMount"),
+  toastStack: document.querySelector("#toastStack"),
+
+  // avatar/skins
   avatarInput: document.querySelector("#avatarInput"),
   skinButtons: Array.from(document.querySelectorAll("#skinPicker .skin-option")),
-  channelButtons: Array.from(document.querySelectorAll(".channel")),
+
+  // configuracoes
   settingsDialog: document.querySelector("#settingsDialog"),
   settingsForm: document.querySelector("#settingsForm"),
   settingsClose: document.querySelector("#settingsClose"),
@@ -54,5 +67,9 @@ export const els = {
   speakerSelect: document.querySelector("#speakerSelect"),
   refreshDevices: document.querySelector("#refreshDevices"),
   qualitySelect: document.querySelector("#qualitySelect"),
-  mirrorToggle: document.querySelector("#mirrorToggle")
+  mirrorToggle: document.querySelector("#mirrorToggle"),
+  micTestButton: document.querySelector("#micTestButton"),
+  micMeter: document.querySelector("#micMeter"),
+  micMeterBar: document.querySelector("#micMeterBar"),
+  micStatus: document.querySelector("#micStatus")
 };

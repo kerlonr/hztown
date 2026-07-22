@@ -1,6 +1,8 @@
 // Cenario do escritorio em pixel art, desenhado uma vez num canvas de baixa
 // resolucao e ampliado com image-rendering: pixelated (estilo Gather Town).
-// As salas seguem os retangulos de PRIVATE_ROOMS (em % do mapa).
+// Paredes e moveis vem de mapGeometry.js — a mesma fonte usada pela colisao.
+
+import { FURNITURE, WALL_SEGMENTS } from "../core/mapGeometry.js";
 
 const W = 512;
 const H = 320;
@@ -23,6 +25,7 @@ function mulberry32(seed) {
 
 const FLOOR = { x1: X(6), y1: Y(9), x2: X(94), y2: Y(91) };
 
+// Retangulos visuais das salas (para pintar os carpetes).
 const ROOMS = {
   team: { x1: X(12), y1: Y(20), x2: X(53), y2: Y(64) },
   daily: { x1: X(53), y1: Y(20), x2: X(88), y2: Y(64) },
@@ -85,13 +88,6 @@ function paintCarpets(g) {
   carpet(g, ROOMS.team, "#2f3560", "#3a4173", "#262b4e");
   carpet(g, ROOMS.daily, "#24473e", "#2d574c", "#1d3a33");
   carpet(g, ROOMS.focus, "#462c3d", "#54374a", "#382332");
-
-  // tapete redondo do lounge
-  const cx = X(31);
-  const cy = Y(78);
-  circle(g, cx, cy, 34, "#8a6a2a");
-  circle(g, cx, cy, 28, "#a8842f");
-  circle(g, cx, cy, 16, "#8a6a2a");
 }
 
 function carpet(g, r, base, light, dark) {
@@ -122,110 +118,82 @@ function circle(g, cx, cy, r, color) {
   }
 }
 
-// ----- paredes externas e divisorias (com portas) -----
+// ----- paredes (externas + segmentos da geometria compartilhada) -----
 function paintWalls(g) {
   const { x1, y1, x2, y2 } = FLOOR;
   const wallTop = "#3a4256";
   const wallFace = "#262c3c";
   const wallDark = "#181d29";
 
-  // parede de cima com "altura" (pseudo profundidade)
+  // parede externa de cima com "altura" (pseudo profundidade)
   rect(g, x1 - 6, y1 - 16, x2 - x1 + 12, 12, wallFace);
   rect(g, x1 - 6, y1 - 16, x2 - x1 + 12, 3, wallTop);
   rect(g, x1 - 6, y1 - 4, x2 - x1 + 12, 4, wallDark);
-  // laterais e base
+  // laterais e base externas
   rect(g, x1 - 6, y1 - 16, 6, y2 - y1 + 22, wallFace);
   rect(g, x2, y1 - 16, 6, y2 - y1 + 22, wallFace);
   rect(g, x1 - 6, y2, x2 - x1 + 12, 6, wallFace);
   rect(g, x1 - 6, y2, x2 - x1 + 12, 2, wallTop);
 
-  // divisorias internas (portas = vaos de 34px)
-  const midX = ROOMS.team.x2; // 53%
-  const midY = ROOMS.team.y2; // 64%
-
-  // vertical entre team e daily, porta no centro
-  wallV(g, midX, ROOMS.team.y1, midY, wallFace, wallTop, 34);
-  // vertical entre lounge e focus
-  wallV(g, midX, ROOMS.focus.y1, FLOOR.y2, wallFace, wallTop, 34);
-  // horizontal abaixo de team/daily, portas no centro de cada sala
-  wallH(g, ROOMS.team.x1, midX, midY, wallFace, wallTop, 34);
-  wallH(g, midX, ROOMS.daily.x2, midY, wallFace, wallTop, 34);
-  // bordas superiores das salas (encostam na parede externa? nao: comecam em 20%)
-  wallH(g, ROOMS.team.x1, ROOMS.daily.x2, ROOMS.team.y1, wallFace, wallTop, 0);
-  // laterais externas das salas
-  wallV(g, ROOMS.team.x1, ROOMS.team.y1, midY, wallFace, wallTop, 0);
-  wallV(g, ROOMS.daily.x2, ROOMS.team.y1, midY, wallFace, wallTop, 0);
-  wallV(g, ROOMS.focus.x2, ROOMS.focus.y1, FLOOR.y2, wallFace, wallTop, 0);
-  wallH(g, midX, ROOMS.focus.x2, ROOMS.focus.y1, wallFace, wallTop, 30);
-}
-
-function wallV(g, x, yStart, yEnd, face, top, doorGap) {
-  const mid = (yStart + yEnd) / 2;
-  const half = doorGap / 2;
-  const draw = (a, b) => {
-    if (b - a < 2) return;
-    rect(g, x - 2, a, 4, b - a, face);
-    rect(g, x - 2, a, 1, b - a, top);
-  };
-  if (doorGap > 0) {
-    draw(yStart, mid - half);
-    draw(mid + half, yEnd);
-  } else {
-    draw(yStart, yEnd);
+  // divisorias internas (mesma geometria usada na colisao)
+  for (const seg of WALL_SEGMENTS) {
+    if (seg.axis === "h") {
+      rect(g, X(seg.x1), Y(seg.y) - 3, X(seg.x2) - X(seg.x1), 6, wallFace);
+      rect(g, X(seg.x1), Y(seg.y) - 3, X(seg.x2) - X(seg.x1), 1, wallTop);
+    } else {
+      rect(g, X(seg.x) - 2, Y(seg.y1), 4, Y(seg.y2) - Y(seg.y1), wallFace);
+      rect(g, X(seg.x) - 2, Y(seg.y1), 1, Y(seg.y2) - Y(seg.y1), wallTop);
+    }
   }
 }
 
-function wallH(g, xStart, xEnd, y, face, top, doorGap) {
-  const mid = (xStart + xEnd) / 2;
-  const half = doorGap / 2;
-  const draw = (a, b) => {
-    if (b - a < 2) return;
-    rect(g, a, y - 3, b - a, 6, face);
-    rect(g, a, y - 3, b - a, 1, top);
-  };
-  if (doorGap > 0) {
-    draw(xStart, mid - half);
-    draw(mid + half, xEnd);
-  } else {
-    draw(xStart, xEnd);
-  }
-}
-
-// ----- mobiliario -----
+// ----- mobiliario (dirigido pela lista FURNITURE da geometria) -----
 function paintFurniture(g) {
-  // Team: duas bancadas com monitores
-  desk(g, X(22), Y(32), 70, 22, 3);
-  desk(g, X(22), Y(48), 70, 22, 3);
-
-  // Daily: mesa redonda de reuniao com cadeiras
-  roundTable(g, X(70), Y(41), 26);
-
-  // Focus: mesas individuais
-  desk(g, X(60), Y(74), 34, 20, 1);
-  desk(g, X(76), Y(74), 34, 20, 1);
-
-  // Lounge: sofa em L + mesinha de centro
-  sofa(g, X(15), Y(70), 64, 16, "#b3593a");
-  sofaVertical(g, X(15), Y(75), 16, 42, "#b3593a");
-  rect(g, X(28), Y(76), 22, 14, "#5d4430");
-  rect(g, X(28), Y(76), 22, 3, "#75573d");
-  // caneca na mesinha
-  rect(g, X(30), Y(78), 4, 4, "#e8e4da");
-
-  // estante de livros encostada na parede superior do lounge
-  bookshelf(g, X(38), Y(66) + 5, 58, 18);
-
-  // plantas espalhadas
-  plant(g, X(9), Y(14));
-  plant(g, X(90), Y(14));
-  plant(g, X(9), Y(86));
-  plant(g, X(90), Y(86));
-  plant(g, X(50), Y(85));
-  plant(g, X(56), Y(23));
-
-  // tapete de entrada (porta de baixo do mapa)
-  rect(g, X(48), Y(88), 22, 8, "#3d4658");
-  rect(g, X(48), Y(88), 22, 1, "#4d586e");
+  for (const item of FURNITURE) {
+    switch (item.type) {
+      case "desk":
+        desk(g, X(item.x), Y(item.y), X(item.w) - X(0), Y(item.h) - Y(0), item.monitors);
+        break;
+      case "table":
+        roundTable(g, X(item.cx), Y(item.cy), X(item.rx) - X(0));
+        break;
+      case "rug-round": {
+        const cx = X(item.cx);
+        const cy = Y(item.cy);
+        const r = X(item.rx) - X(0);
+        circle(g, cx, cy, r, "#8a6a2a");
+        circle(g, cx, cy, r - 6, "#a8842f");
+        circle(g, cx, cy, Math.floor(r / 2) - 1, "#8a6a2a");
+        break;
+      }
+      case "sofa-h":
+        sofa(g, X(item.x), Y(item.y), X(item.w) - X(0), Y(item.h) - Y(0), "#b3593a");
+        break;
+      case "sofa-v":
+        sofaVertical(g, X(item.x), Y(item.y), X(item.w) - X(0), Y(item.h) - Y(0), "#b3593a");
+        break;
+      case "coffee": {
+        const w = X(item.w) - X(0);
+        const h = Y(item.h) - Y(0);
+        rect(g, X(item.x), Y(item.y), w, h, "#5d4430");
+        rect(g, X(item.x), Y(item.y), w, 3, "#75573d");
+        rect(g, X(item.x) + 2, Y(item.y) + 2, 4, 4, "#e8e4da"); // caneca
+        break;
+      }
+      case "bookshelf":
+        bookshelf(g, X(item.x), Y(item.y), X(item.w) - X(0), Y(item.h) - Y(0));
+        break;
+      case "plant":
+        plant(g, X(item.x), Y(item.y));
+        break;
+      case "mat": {
+        const w = X(item.w) - X(0);
+        rect(g, X(item.x), Y(item.y), w, Y(item.h) - Y(0), "#3d4658");
+        rect(g, X(item.x), Y(item.y), w, 1, "#4d586e");
+        break;
+      }
+    }
+  }
 }
 
 function desk(g, x, y, w, h, monitors) {

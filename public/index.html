@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#10141a" />
+    <meta name="theme-color" content="#0a0c12" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="HZTown" />
@@ -16,46 +16,87 @@
   </head>
   <body>
     <main class="app-shell">
-      <aside class="rail" aria-label="Espacos">
-        <button class="workspace-mark active" title="HZ HQ">HZ</button>
-        <button class="workspace-dot" title="Adicionar espaco">+</button>
-      </aside>
-
-      <aside class="sidebar" aria-label="Navegacao">
-        <div class="brand">
-          <span>HZTown</span>
-          <small>HZ HQ</small>
+      <!-- Mapa em tela cheia: o palco principal -->
+      <div class="stage">
+        <div class="floor-plan" id="floorPlan" tabindex="0" aria-label="Mapa do escritorio">
+          <canvas id="floorCanvas" class="floor-canvas" aria-hidden="true"></canvas>
+          <div class="room room-team"><span>Team</span></div>
+          <div class="room room-daily"><span>Daily</span></div>
+          <div class="room room-focus"><span>Focus</span></div>
+          <div class="room room-lounge"><span>Lounge</span></div>
+          <div class="proximity-zone" id="proximityZone"></div>
+          <div id="avatarsLayer" class="avatars-layer"></div>
         </div>
+      </div>
+
+      <!-- HUD: menu (esquerda), status (topo), janelas (direita), dock (baixo) -->
+      <button id="menuButton" class="hud-button hud-menu" aria-label="Abrir menu" title="Menu" aria-expanded="false">
+        <span class="tool-icon" data-icon="menu"></span>
+      </button>
+
+      <div class="hud-top">
+        <span id="connectionStatus" class="status-pill">LiveKit pronto</span>
+        <div id="voiceTiles" class="voice-tiles" aria-label="Quem voce ouve"></div>
+      </div>
+
+      <div class="hud-right">
+        <button id="chatButton" class="hud-button" aria-label="Abrir chat" title="Chat" type="button">
+          <span class="tool-icon" data-icon="message"></span>
+        </button>
+        <button id="mediaButton" class="hud-button" aria-label="Abrir video e tela" title="Video e tela" type="button">
+          <span class="tool-icon" data-icon="monitor"></span>
+        </button>
+      </div>
+
+      <div id="reactionBar" class="reaction-bar" aria-label="Reacoes rapidas"></div>
+
+      <div class="dock" role="toolbar" aria-label="Controles de chamada">
+        <button id="muteButton" class="tool-button" aria-label="Mutar microfone" title="Mutar microfone" disabled>
+          <span id="muteIcon" class="tool-icon" data-icon="mic"></span>
+        </button>
+        <button id="cameraButton" class="tool-button" aria-label="Abrir camera" title="Abrir camera" disabled>
+          <span id="cameraIcon" class="tool-icon" data-icon="video"></span>
+        </button>
+        <button id="voiceButton" class="primary-button call-button" aria-label="Entrar na voz" title="Entrar na voz">
+          <span id="voiceIcon" class="tool-icon" data-icon="phone"></span>
+        </button>
+        <button id="screenButton" class="tool-button" aria-label="Transmitir tela" title="Transmitir tela" disabled>
+          <span id="screenIcon" class="tool-icon" data-icon="monitor"></span>
+        </button>
+        <button id="settingsButton" class="tool-button" aria-label="Configuracoes" title="Configuracoes" type="button">
+          <span class="tool-icon" data-icon="settings"></span>
+        </button>
+      </div>
+
+      <!-- Drawer esquerdo: areas, quem esta online e seu perfil -->
+      <aside id="sideDrawer" class="side-drawer" aria-label="Menu do espaco">
+        <header class="drawer-head">
+          <div class="brand">
+            <span>HZTown</span>
+            <small>HZ HQ</small>
+          </div>
+          <button id="drawerClose" class="icon-button" aria-label="Fechar menu" title="Fechar" type="button">
+            <span class="tool-icon" data-icon="close"></span>
+          </button>
+        </header>
 
         <section class="nav-section">
           <p class="section-title">Areas</p>
           <button class="channel active" data-channel="team">
             <span class="channel-icon">#</span>
-            <span>
-              Team
-              <small>Sala privada</small>
-            </span>
+            <span>Team <small>Sala privada</small></span>
           </button>
           <button class="channel" data-channel="daily">
             <span class="channel-icon">#</span>
-            <span>
-              Daily
-              <small>Sala privada</small>
-            </span>
+            <span>Daily <small>Sala privada</small></span>
           </button>
           <button class="channel" data-channel="focus">
             <span class="channel-icon">#</span>
-            <span>
-              Focus
-              <small>Sala privada</small>
-            </span>
+            <span>Focus <small>Sala privada</small></span>
           </button>
           <button class="channel" data-channel="lounge">
             <span class="channel-icon">~</span>
-            <span>
-              Lounge
-              <small>Area aberta (proximidade)</small>
-            </span>
+            <span>Lounge <small>Area aberta (proximidade)</small></span>
           </button>
         </section>
 
@@ -73,114 +114,43 @@
         </div>
       </aside>
 
-      <section class="workspace">
-        <header class="topbar">
+      <!-- Janela flutuante: chat -->
+      <section id="chatWindow" class="float-window chat-window" aria-label="Chat de texto">
+        <header class="window-head" data-drag>
           <div>
-            <p class="eyebrow">Seu escritorio virtual</p>
-            <h1>HZ HQ</h1>
+            <strong>Chat</strong>
+            <small id="chatChannelLabel">Team</small>
           </div>
+          <button class="icon-button" data-close aria-label="Fechar chat" title="Fechar" type="button">
+            <span class="tool-icon" data-icon="close"></span>
+          </button>
         </header>
+        <div id="chatMessages" class="chat-messages"></div>
+        <form id="chatForm" class="chat-form">
+          <input id="chatInput" maxlength="800" autocomplete="off" placeholder="Mensagem" />
+          <button class="primary-button" type="submit" aria-label="Enviar mensagem" title="Enviar mensagem">
+            <span class="tool-icon" data-icon="send"></span>
+          </button>
+        </form>
+      </section>
 
-        <section class="voice-strip" aria-label="Participantes da chamada">
+      <!-- Janela flutuante: video e compartilhamento de tela -->
+      <section id="mediaWindow" class="float-window media-window" aria-label="Video e compartilhamento">
+        <header class="window-head" data-drag>
           <div>
-            <strong id="voiceTitle">Team</strong>
-            <small id="voiceSubtitle">Entre para conversar com quem estiver no mesmo canal.</small>
-            <small id="connectionStatus">LiveKit pronto</small>
-            <div id="micMeter" class="mic-meter" aria-label="Nivel do microfone">
-              <span id="micMeterBar"></span>
-            </div>
-            <small id="micStatus">Mic nao testado</small>
+            <strong>Video &amp; Tela</strong>
+            <small>quem esta por perto</small>
           </div>
-          <div id="voiceTiles" class="voice-tiles"></div>
-        </section>
-
-        <section class="workspace-body">
-          <div class="main-stage">
-            <section class="media-dock" aria-label="Video e compartilhamento">
-              <div id="mediaGrid" class="media-grid empty">
-                <div class="media-empty">
-                  <strong>Sem video ativo</strong>
-                  <small>Abra a camera ou compartilhe a tela para aparecer aqui.</small>
-                </div>
-              </div>
-            </section>
-
-            <section class="floor-wrapper">
-              <div class="floor-plan" id="floorPlan" tabindex="0" aria-label="Planta baixa interativa">
-                <canvas id="floorCanvas" class="floor-canvas" aria-hidden="true"></canvas>
-                <div class="room room-team" data-channel="team">
-                  <span>Team</span>
-                </div>
-                <div class="room room-daily" data-channel="daily">
-                  <span>Daily</span>
-                </div>
-                <div class="room room-focus" data-channel="focus">
-                  <span>Focus</span>
-                </div>
-                <div class="room room-lounge">
-                  <span>Lounge</span>
-                </div>
-                <div class="proximity-zone" id="proximityZone"></div>
-                <div id="avatarsLayer" class="avatars-layer"></div>
-                <div id="reactionBar" class="reaction-bar" aria-label="Reacoes rapidas"></div>
-              </div>
-            </section>
-
-            <div class="topbar-actions">
-              <button id="muteButton" class="tool-button" aria-label="Mutar microfone" title="Mutar microfone" disabled>
-                <span id="muteIcon" class="tool-icon" data-icon="mic"></span>
-                <span class="sr-only">Microfone</span>
-              </button>
-              <button id="cameraButton" class="tool-button" aria-label="Abrir camera" title="Abrir camera" disabled>
-                <span id="cameraIcon" class="tool-icon" data-icon="video"></span>
-                <span class="sr-only">Camera</span>
-              </button>
-              <button id="voiceButton" class="primary-button call-button" aria-label="Entrar na voz" title="Entrar na voz">
-                <span id="voiceIcon" class="tool-icon" data-icon="phone"></span>
-                <span class="sr-only">Entrar na voz</span>
-              </button>
-              <button id="chatButton" class="tool-button active" aria-label="Abrir chat" title="Abrir chat" type="button">
-                <span class="tool-icon" data-icon="message"></span>
-                <span class="sr-only">Chat</span>
-              </button>
-              <button id="settingsButton" class="tool-button" aria-label="Configuracoes" title="Configuracoes" type="button">
-                <span class="tool-icon" data-icon="settings"></span>
-                <span class="sr-only">Configuracoes</span>
-              </button>
-              <button id="moreButton" class="tool-button more-button" aria-label="Mais opcoes" title="Mais opcoes" type="button" aria-expanded="false">
-                <span class="tool-icon" data-icon="more"></span>
-                <span class="sr-only">Mais opcoes</span>
-              </button>
-              <div id="moreMenu" class="more-menu">
-                <button id="screenButton" class="tool-button" aria-label="Transmitir tela" title="Transmitir tela" disabled>
-                  <span id="screenIcon" class="tool-icon" data-icon="monitor"></span>
-                  <span class="tool-label">Tela</span>
-                </button>
-                <button id="micTestButton" class="tool-button" aria-label="Testar microfone" title="Testar microfone" type="button">
-                  <span class="tool-icon" data-icon="gauge"></span>
-                  <span class="tool-label">Teste mic</span>
-                </button>
-              </div>
-            </div>
+          <button class="icon-button" data-close aria-label="Fechar video" title="Fechar" type="button">
+            <span class="tool-icon" data-icon="close"></span>
+          </button>
+        </header>
+        <div id="mediaGrid" class="media-grid empty">
+          <div class="media-empty">
+            <strong>Sem video ativo</strong>
+            <small>Abra a camera ou compartilhe a tela para aparecer aqui.</small>
           </div>
-
-          <aside id="chatPanel" class="chat-panel" aria-label="Chat de texto">
-            <header class="chat-header">
-              <div>
-                <strong>Chat</strong>
-                <small id="chatChannelLabel">Team</small>
-              </div>
-            </header>
-            <div id="chatMessages" class="chat-messages"></div>
-            <form id="chatForm" class="chat-form">
-              <input id="chatInput" maxlength="800" autocomplete="off" placeholder="Mensagem" />
-              <button class="primary-button" type="submit" aria-label="Enviar mensagem" title="Enviar mensagem">
-                <span class="tool-icon" data-icon="send"></span>
-                <span class="sr-only">Enviar</span>
-              </button>
-            </form>
-          </aside>
-        </section>
+        </div>
       </section>
     </main>
 
@@ -207,7 +177,8 @@
             <input id="avatarInput" type="file" accept="image/png,image/jpeg,image/webp" />
           </label>
         </div>
-        <button class="primary-button" value="confirm">Entrar no espaco</button>
+        <button class="primary-button wide" value="confirm">Entrar no espaco</button>
+        <p class="join-hint">Ande com <kbd>WASD</kbd> ou clique no mapa · Reaja com <kbd>1</kbd>-<kbd>6</kbd></p>
       </form>
     </dialog>
 
@@ -265,6 +236,19 @@
               <select id="speakerSelect"></select>
             </label>
             <button id="refreshDevices" class="ghost-button" type="button">Atualizar dispositivos</button>
+          </section>
+
+          <section class="settings-group">
+            <p class="section-title">Teste de microfone</p>
+            <div class="mic-test-row">
+              <button id="micTestButton" class="ghost-button" type="button">Testar microfone</button>
+              <div class="mic-test-status">
+                <div id="micMeter" class="mic-meter" aria-label="Nivel do microfone">
+                  <span id="micMeterBar"></span>
+                </div>
+                <small id="micStatus">Mic nao testado</small>
+              </div>
+            </div>
           </section>
 
           <section class="settings-group">
