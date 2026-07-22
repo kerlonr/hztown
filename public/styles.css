@@ -178,6 +178,12 @@ button {
   font-weight: 800;
   font-size: 16px;
   letter-spacing: -0.01em;
+  background: linear-gradient(120deg, #a5b4fc, #6ee7b7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  width: fit-content;
 }
 
 small,
@@ -325,6 +331,12 @@ small,
   background-size: cover;
   background-position: center;
   transition: box-shadow 160ms var(--ease), border-color 160ms var(--ease);
+}
+
+/* Retratos pixelados nitidos mesmo ampliados. */
+.avatar.pix {
+  image-rendering: pixelated;
+  border-radius: 10px;
 }
 
 .avatar.speaking {
@@ -729,158 +741,78 @@ small,
   overflow: hidden;
   border: 1px solid var(--line-strong);
   border-radius: 20px;
-  background:
-    radial-gradient(90% 90% at 50% 0%, rgba(129, 140, 248, 0.08), transparent 60%),
-    linear-gradient(0deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px) 0 0 / 100% 36px,
-    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px) 0 0 / 36px 100%,
-    #11141b;
+  background: #0a0c12;
   box-shadow: var(--shadow-lg), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
   outline: none;
-  cursor: crosshair;
+  cursor: pointer;
 }
 
 .floor-plan:focus-visible {
   box-shadow: var(--ring), var(--shadow-lg);
 }
 
+/* Cenario pixel art desenhado em canvas de baixa resolucao e ampliado. */
+.floor-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+/* As salas agora sao desenhadas no canvas; aqui ficam apenas os rotulos. */
 .room {
   position: absolute;
   display: grid;
   place-items: start;
-  border: 1px solid var(--line-strong);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.022);
-  transition: border-color 160ms var(--ease), background 160ms var(--ease);
+  pointer-events: none;
 }
 
 .room span {
-  margin: 12px;
-  padding: 4px 9px;
+  margin: 10px;
+  padding: 3px 9px;
   border-radius: 999px;
-  background: rgba(5, 7, 11, 0.6);
+  background: rgba(5, 7, 11, 0.72);
   color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   backdrop-filter: blur(6px);
+  border: 1px solid var(--line);
 }
 
 .room-team {
   inset: 20% 47% 36% 12%;
-  border-color: rgba(129, 140, 248, 0.55);
-  background: rgba(129, 140, 248, 0.05);
+}
+
+.room-team span {
+  color: #b4bcff;
 }
 
 .room-daily {
   inset: 20% 12% 36% 53%;
-  border-color: rgba(52, 211, 153, 0.45);
-  background: rgba(52, 211, 153, 0.04);
+}
+
+.room-daily span {
+  color: #8ff0cd;
 }
 
 .room-focus {
   inset: 66% 12% 8% 53%;
-  border-color: rgba(253, 164, 175, 0.45);
-  background: rgba(253, 164, 175, 0.04);
+}
+
+.room-focus span {
+  color: #ffb3c4;
 }
 
 .room-lounge {
   inset: 66% 53% 8% 12%;
-  border-color: rgba(252, 211, 77, 0.35);
-  background: rgba(252, 211, 77, 0.035);
 }
 
-.desk {
-  position: absolute;
-  border: 1px solid rgba(129, 140, 248, 0.5);
-  border-radius: 9px;
-  background: rgba(129, 140, 248, 0.08);
-}
-
-.desk-a {
-  left: 25%;
-  top: 39%;
-  width: 13%;
-  height: 10%;
-}
-
-.desk-b {
-  right: 30%;
-  top: 38%;
-  width: 13%;
-  height: 10%;
-  border-color: rgba(52, 211, 153, 0.5);
-  background: rgba(52, 211, 153, 0.08);
-}
-
-.desk-c {
-  left: 26%;
-  bottom: 18%;
-  width: 12%;
-  height: 8%;
-  border-color: rgba(252, 211, 77, 0.5);
-  background: rgba(252, 211, 77, 0.08);
-}
-
-/* Mobiliario decorativo (nao interativo) para dar vida ao ambiente. */
-.decor {
-  position: absolute;
-  pointer-events: none;
-}
-
-.decor-table {
-  right: 18%;
-  top: 26%;
-  width: 9%;
-  aspect-ratio: 1;
-  border: 1px solid rgba(52, 211, 153, 0.45);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, rgba(52, 211, 153, 0.14), transparent 70%);
-}
-
-.decor-rug {
-  left: 20%;
-  bottom: 14%;
-  width: 22%;
-  height: 18%;
-  border-radius: 18px;
-  background: rgba(252, 211, 77, 0.06);
-  box-shadow: inset 0 0 0 1px rgba(252, 211, 77, 0.16);
-}
-
-.decor-plant {
-  width: 14px;
-  height: 14px;
-  border-radius: 50% 50% 45% 45%;
-  background: radial-gradient(circle at 50% 35%, #4ade80, #15803d);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-}
-
-.decor-plant::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -6px;
-  width: 8px;
-  height: 6px;
-  border-radius: 0 0 3px 3px;
-  background: #7c5a3a;
-  transform: translateX(-50%);
-}
-
-.decor-plant-1 {
-  left: 10.5%;
-  top: 23%;
-}
-
-.decor-plant-2 {
-  right: 10.5%;
-  top: 23%;
-}
-
-.decor-plant-3 {
-  left: 49%;
-  bottom: 12%;
+.room-lounge span {
+  color: #ffe08f;
 }
 
 .proximity-zone {
@@ -901,32 +833,79 @@ small,
 
 .map-avatar {
   position: absolute;
+  /* Avatares remotos deslizam suavemente entre os updates de rede. */
+  transition: left 110ms linear, top 110ms linear;
+}
+
+/* Personagem pixel art: o elemento mostra um quadro do spritesheet.
+   Ancorado nos pes (translate -88%) para dar nocao de chao. */
+.map-avatar.pix {
+  width: 48px;
+  height: 66px;
+  transform: translate(-50%, -88%);
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.5));
+}
+
+/* Sombra oval sob os pes (tambem funciona como indicador de status). */
+.map-avatar.pix::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  width: 28px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.38);
+  transform: translateX(-50%);
+  transition: background 160ms var(--ease), box-shadow 160ms var(--ease);
+  z-index: -1;
+}
+
+.map-avatar.pix.self::before {
+  background: rgba(129, 140, 248, 0.4);
+  box-shadow: 0 0 14px rgba(129, 140, 248, 0.5);
+}
+
+.map-avatar.pix.near::before {
+  background: rgba(52, 211, 153, 0.42);
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.45);
+}
+
+.map-avatar.pix.speaking::before {
+  background: rgba(34, 197, 94, 0.55);
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.65);
+}
+
+/* Avatares com foto enviada continuam como circulo. */
+.map-avatar.photo {
   display: grid;
   width: 44px;
   height: 44px;
   place-items: center;
   border: 3px solid rgba(255, 255, 255, 0.22);
   border-radius: 50%;
-  color: #0a0d1a;
-  font-weight: 800;
   transform: translate(-50%, -50%);
-  /* Avatares remotos deslizam suavemente entre os updates de rede. */
-  transition: left 110ms linear, top 110ms linear, box-shadow 160ms var(--ease);
   background-size: cover;
   background-position: center;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
 }
 
-/* O proprio avatar e atualizado a cada frame, entao nao usa transicao de posicao. */
-.map-avatar.self {
+.map-avatar.photo.self {
   border-color: var(--accent);
   box-shadow: 0 0 0 6px rgba(129, 140, 248, 0.16), 0 6px 16px rgba(0, 0, 0, 0.45);
-  transition: box-shadow 160ms var(--ease);
 }
 
-.map-avatar.near {
+.map-avatar.photo.near {
   border-color: rgba(52, 211, 153, 0.7);
-  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.14), 0 6px 16px rgba(0, 0, 0, 0.45);
+}
+
+.map-avatar.photo.speaking {
+  border-color: var(--live-strong);
+  box-shadow:
+    0 0 0 6px rgba(34, 197, 94, 0.22),
+    0 0 24px rgba(34, 197, 94, 0.45);
 }
 
 @keyframes walk-bob {
@@ -934,21 +913,13 @@ small,
   50% { transform: translate(-50%, -57%); }
 }
 
-.map-avatar.self.walking {
+.map-avatar.photo.self.walking {
   animation: walk-bob 360ms var(--ease) infinite;
-}
-
-.map-avatar.speaking,
-.map-avatar.self.speaking {
-  border-color: var(--live-strong);
-  box-shadow:
-    0 0 0 6px rgba(34, 197, 94, 0.22),
-    0 0 24px rgba(34, 197, 94, 0.45);
 }
 
 .map-avatar::after {
   position: absolute;
-  top: -28px;
+  top: -24px;
   left: 50%;
   max-width: 140px;
   padding: 3px 9px;
@@ -964,6 +935,112 @@ small,
   white-space: nowrap;
   backdrop-filter: blur(6px);
   border: 1px solid var(--line);
+}
+
+.map-avatar.pix::after {
+  top: -20px;
+}
+
+/* Balao de fala sobre o avatar (estilo Gather Town). */
+.map-bubble {
+  position: absolute;
+  bottom: calc(100% + 26px);
+  left: 50%;
+  width: max-content;
+  max-width: 170px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  background: #f4f6fb;
+  color: #12151f;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  transform: translateX(-50%);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  animation: bubble-pop 180ms var(--ease);
+  z-index: 6;
+}
+
+.map-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  border: 6px solid transparent;
+  border-top-color: #f4f6fb;
+  transform: translateX(-50%);
+}
+
+.map-bubble.leaving {
+  opacity: 0;
+  transition: opacity 200ms var(--ease);
+}
+
+@keyframes bubble-pop {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px) scale(0.9);
+  }
+}
+
+/* Emoji de reacao subindo do avatar. */
+.reaction-float {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  font-size: 22px;
+  pointer-events: none;
+  animation: reaction-rise 1.5s ease-out forwards;
+  z-index: 7;
+}
+
+@keyframes reaction-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 6px) scale(0.6);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--drift, 0px) * 0.3), -12px) scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--drift, 0px)), -58px) scale(1);
+  }
+}
+
+/* Barra de reacoes rapidas no rodape do mapa. */
+.reaction-bar {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  display: flex;
+  gap: 4px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(10, 12, 18, 0.78);
+  transform: translateX(-50%);
+  backdrop-filter: blur(8px);
+  z-index: 5;
+}
+
+.reaction-button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 17px;
+  line-height: 1;
+  transition: transform 120ms var(--ease), background 120ms var(--ease);
+}
+
+.reaction-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.18) translateY(-2px);
 }
 
 /* Dialogs */
@@ -1372,28 +1449,11 @@ small,
   transform: scale(1.08);
 }
 
-.skin-option[data-avatar="default:mint"] {
-  background: linear-gradient(135deg, #6ee7b7, #155e75);
-}
-
-.skin-option[data-avatar="default:blue"] {
-  background: linear-gradient(135deg, #93c5fd, #1d4ed8);
-}
-
-.skin-option[data-avatar="default:rose"] {
-  background: linear-gradient(135deg, #fda4af, #be123c);
-}
-
-.skin-option[data-avatar="default:gold"] {
-  background: linear-gradient(135deg, #fcd34d, #b45309);
-}
-
-.skin-option[data-avatar="default:violet"] {
-  background: linear-gradient(135deg, #c4b5fd, #6d28d9);
-}
-
-.skin-option[data-avatar="default:slate"] {
-  background: linear-gradient(135deg, #cbd5e1, #334155);
+/* Os retratos pixelados das skins sao pintados via JS (paintSkinOptions). */
+.skin-option.pix {
+  border-radius: 10px;
+  image-rendering: pixelated;
+  background-color: var(--panel-3);
 }
 
 .skin-option.active {
@@ -1614,7 +1674,7 @@ small,
     aspect-ratio: 10 / 14;
   }
 
-  .map-avatar {
+  .map-avatar.photo {
     width: 38px;
     height: 38px;
   }

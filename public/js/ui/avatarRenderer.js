@@ -1,6 +1,7 @@
 import { DEFAULT_SKINS } from "../core/appConfig.js";
 import { state } from "../core/appState.js";
 import { initials } from "../shared/formattingValues.js";
+import { isPixelSkin, portraitUrl } from "./pixelSprites.js";
 
 export function applyAvatar(element, user) {
   const avatar = user.avatar || "";
@@ -9,7 +10,18 @@ export function applyAvatar(element, user) {
   element.style.backgroundImage = "";
   element.style.backgroundSize = "";
   element.style.backgroundPosition = "";
+  element.classList.remove("pix");
   element.textContent = initials(user.name || "G");
+
+  // Skins padrao viram retratos pixelados (cabeca do personagem).
+  if (isPixelSkin(avatar)) {
+    element.classList.add("pix");
+    element.style.backgroundImage = `url("${portraitUrl(avatar)}")`;
+    element.style.backgroundSize = "cover";
+    element.style.backgroundPosition = "center";
+    element.textContent = "";
+    return;
+  }
 
   if (DEFAULT_SKINS[avatar]) {
     element.style.backgroundImage = DEFAULT_SKINS[avatar];

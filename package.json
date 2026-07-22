@@ -1,7 +1,7 @@
 {
-  "name": "projeto-gt",
-  "version": "0.1.0",
-  "description": "MVP de uma plataforma de comunicacao em planta baixa com chamadas de voz.",
+  "name": "hztown",
+  "version": "0.2.0",
+  "description": "HZTown: escritorio virtual com mapa pixel art, chat por proximidade, voz e video.",
   "type": "module",
   "engines": {
     "node": "20.x"

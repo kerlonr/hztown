@@ -4,11 +4,13 @@ import { publicUser } from "./spaceStore.js";
 
 const MESSAGE_LIMIT = 120;
 const ALLOWED_CHANNELS = new Set(["team", "daily", "focus", "lounge"]);
+const ALLOWED_REACTIONS = new Set(["👋", "❤️", "😂", "🎉", "👍", "🔥"]);
 
 // Limites simples por socket para conter flood de eventos.
 const RATE_LIMITS = {
   "presence:update": { tokens: 30, intervalMs: 1000 },
-  "chat:send": { tokens: 5, intervalMs: 3000 }
+  "chat:send": { tokens: 5, intervalMs: 3000 },
+  "reaction:send": { tokens: 8, intervalMs: 2000 }
 };
 
 function createRateLimiter() {
@@ -109,6 +111,16 @@ export function registerSocketHandlers(io, store) {
       }
 
       io.to(currentSpaceId).emit("chat:message", message);
+    });
+
+    socket.on("reaction:send", (payload) => {
+      if (!currentSpaceId || !allow("reaction:send")) return;
+
+      const user = store.getSpace(currentSpaceId).get(socket.id);
+      const emoji = typeof payload?.emoji === "string" ? payload.emoji : "";
+      if (!user || !ALLOWED_REACTIONS.has(emoji)) return;
+
+      io.to(currentSpaceId).emit("reaction:new", { userId: socket.id, emoji });
     });
 
     socket.on("disconnect", () => {

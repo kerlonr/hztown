@@ -1,6 +1,6 @@
-# Projeto GT
+# HZTown
 
-MVP de uma plataforma de comunicacao centralizada com presenca em planta baixa e chamadas de audio, camera e tela via LiveKit.
+Escritorio virtual estilo Gather Town: mapa em pixel art com personagens animados, chat por proximidade, salas privadas e chamadas de audio, camera e tela via LiveKit.
 
 ## Rodar localmente
 
@@ -29,8 +29,8 @@ server/livekitTokenRoute.js # Rota que emite token LiveKit
 server/socketEvents.js      # Eventos Socket.IO de presenca, chat e sinalizacao
 public/app.js             # Orquestracao do cliente: eventos, LiveKit e render principal
 public/js/core/           # Configuracao, estado e referencias DOM
-public/js/features/       # Funcionalidades de produto: chat e PWA
-public/js/ui/             # Renderizadores visuais: avatar, icones e toasts
+public/js/features/       # Funcionalidades: chat, baloes de fala, reacoes e PWA
+public/js/ui/             # Renderizadores: sprites pixel art, cenario do mapa, avatar, icones e toasts
 public/js/shared/         # Helpers pequenos e puros
 ```
 
@@ -61,9 +61,15 @@ $env:LIVEKIT_API_SECRET="secret"
 npm run dev
 ```
 
-## O que este MVP entrega
+## O que o HZTown entrega
 
 - Interface moderna e minimalista inspirada em Discord e Gather Town.
+- **Personagens em pixel art** gerados em canvas (6 skins), com animacao de caminhada em 4 direcoes
+  e retratos pixelados na sidebar, chat e toasts. Fotos enviadas continuam funcionando como avatar.
+- **Cenario do escritorio em pixel art** (piso de madeira, carpetes, mesas com monitores, sofa,
+  estante, plantas e portas) desenhado em canvas de baixa resolucao e ampliado com `image-rendering: pixelated`.
+- **Baloes de fala** sobre o avatar quando alguem manda mensagem, estilo Gather Town.
+- **Reacoes rapidas com emoji** (barra no mapa ou teclas 1-6) que flutuam sobre o personagem.
 - Planta baixa interativa com movimento fluido (clique para caminhar, ou WASD/setas continuos).
 - **Audio por proximidade (estilo Gather Town):** voce ouve quem esta perto e o volume cai com a
   distancia; as salas Team/Daily/Focus sao areas privadas onde todos dentro se ouvem em volume cheio.

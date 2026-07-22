@@ -29,6 +29,8 @@ export const els = {
   workspaceBody: document.querySelector(".workspace-body"),
   mediaGrid: document.querySelector("#mediaGrid"),
   floorPlan: document.querySelector("#floorPlan"),
+  floorCanvas: document.querySelector("#floorCanvas"),
+  reactionBar: document.querySelector("#reactionBar"),
   avatarsLayer: document.querySelector("#avatarsLayer"),
   proximityZone: document.querySelector("#proximityZone"),
   audioMount: document.querySelector("#audioMount"),

@@ -1,4 +1,4 @@
-const CACHE_NAME = "projeto-gt-static-v6";
+const CACHE_NAME = "hztown-static-v7";
 const STATIC_ASSETS = [
   "/",
   "/styles.css",
@@ -7,12 +7,16 @@ const STATIC_ASSETS = [
   "/js/core/appConfig.js",
   "/js/core/appState.js",
   "/js/core/domElements.js",
+  "/js/features/chatBubbles.js",
   "/js/features/chatPanel.js",
   "/js/features/pwaRegistration.js",
+  "/js/features/reactions.js",
   "/js/features/settingsPanel.js",
   "/js/shared/formattingValues.js",
   "/js/ui/avatarRenderer.js",
   "/js/ui/iconRenderer.js",
+  "/js/ui/mapScene.js",
+  "/js/ui/pixelSprites.js",
   "/js/ui/toastNotifications.js",
   "/icons/icon-192.png",
   "/icons/icon-512.png",

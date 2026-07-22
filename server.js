@@ -76,5 +76,5 @@ registerLiveKitTokenRoute(app, config);
 registerSocketHandlers(io, store);
 
 server.listen(config.port, "0.0.0.0", () => {
-  console.log(`Projeto GT rodando na porta ${config.port}`);
+  console.log(`HZTown rodando na porta ${config.port}`);
 });

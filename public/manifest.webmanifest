@@ -1,12 +1,12 @@
 {
-  "name": "Projeto GT",
-  "short_name": "GT",
-  "description": "Comunicacao centralizada com presenca, chat e chamadas.",
+  "name": "HZTown",
+  "short_name": "HZTown",
+  "description": "Escritorio virtual com mapa pixel art, chat por proximidade, voz e video.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#10141a",
-  "theme_color": "#10141a",
+  "background_color": "#0a0c12",
+  "theme_color": "#0a0c12",
   "orientation": "any",
   "icons": [
     {

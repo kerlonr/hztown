@@ -6,9 +6,9 @@
     <meta name="theme-color" content="#10141a" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Projeto GT" />
+    <meta name="apple-mobile-web-app-title" content="HZTown" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>Projeto GT</title>
+    <title>HZTown</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
@@ -17,14 +17,14 @@
   <body>
     <main class="app-shell">
       <aside class="rail" aria-label="Espacos">
-        <button class="workspace-mark active" title="Tec HQ">GT</button>
+        <button class="workspace-mark active" title="HZ HQ">HZ</button>
         <button class="workspace-dot" title="Adicionar espaco">+</button>
       </aside>
 
       <aside class="sidebar" aria-label="Navegacao">
         <div class="brand">
-          <span>Projeto GT</span>
-          <small>Tec HQ</small>
+          <span>HZTown</span>
+          <small>HZ HQ</small>
         </div>
 
         <section class="nav-section">
@@ -76,8 +76,8 @@
       <section class="workspace">
         <header class="topbar">
           <div>
-            <p class="eyebrow">Comunicacao centralizada</p>
-            <h1>Tec HQ</h1>
+            <p class="eyebrow">Seu escritorio virtual</p>
+            <h1>HZ HQ</h1>
           </div>
         </header>
 
@@ -107,6 +107,7 @@
 
             <section class="floor-wrapper">
               <div class="floor-plan" id="floorPlan" tabindex="0" aria-label="Planta baixa interativa">
+                <canvas id="floorCanvas" class="floor-canvas" aria-hidden="true"></canvas>
                 <div class="room room-team" data-channel="team">
                   <span>Team</span>
                 </div>
@@ -119,16 +120,9 @@
                 <div class="room room-lounge">
                   <span>Lounge</span>
                 </div>
-                <div class="desk desk-a"></div>
-                <div class="desk desk-b"></div>
-                <div class="desk desk-c"></div>
-                <div class="decor decor-table" aria-hidden="true"></div>
-                <div class="decor decor-rug" aria-hidden="true"></div>
-                <div class="decor decor-plant decor-plant-1" aria-hidden="true"></div>
-                <div class="decor decor-plant decor-plant-2" aria-hidden="true"></div>
-                <div class="decor decor-plant decor-plant-3" aria-hidden="true"></div>
                 <div class="proximity-zone" id="proximityZone"></div>
                 <div id="avatarsLayer" class="avatars-layer"></div>
+                <div id="reactionBar" class="reaction-bar" aria-label="Reacoes rapidas"></div>
               </div>
             </section>
 
@@ -192,8 +186,8 @@
 
     <dialog id="joinDialog" class="join-dialog">
       <form method="dialog" id="joinForm">
-        <p class="eyebrow">Projeto ousado, nome fake</p>
-        <h2>Entrar na Tec HQ</h2>
+        <p class="eyebrow">Bem-vindo ao HZTown</p>
+        <h2>Entrar no HZ HQ</h2>
         <label>
           Seu nome
           <input id="nameInput" name="name" maxlength="28" autocomplete="name" placeholder="Ex.: Renan" required />

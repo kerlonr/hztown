@@ -23,6 +23,15 @@ import { registerServiceWorker } from "./js/features/pwaRegistration.js";
 import { initSettingsPanel, openSettings } from "./js/features/settingsPanel.js";
 import { state } from "./js/core/appState.js";
 import { clamp } from "./js/shared/formattingValues.js";
+import {
+  applyMapSprite,
+  paintSkinOptions,
+  setSpritePose,
+  startSpriteTicker
+} from "./js/ui/pixelSprites.js";
+import { paintMapScene } from "./js/ui/mapScene.js";
+import { initReactions } from "./js/features/reactions.js";
+import { showChatBubble } from "./js/features/chatBubbles.js";
 
 // Opcoes de captura que respeitam o dispositivo e a qualidade escolhidos nas configuracoes.
 function currentAudioOptions() {
@@ -37,6 +46,15 @@ const socket = io();
 
 hydrateStaticIcons();
 registerServiceWorker();
+paintMapScene(els.floorCanvas);
+paintSkinOptions();
+startSpriteTicker();
+initReactions({
+  socket,
+  bar: els.reactionBar,
+  floorPlan: els.floorPlan,
+  getMapEl: (id) => mapEls.get(id)
+});
 
 initSettingsPanel({
   onName: applyName,
@@ -172,10 +190,12 @@ const EMIT_INTERVAL = 90; // ms entre updates de rede
 const PROXIMITY_RADIUS = 16; // raio (em %) para destacar quem esta perto
 const heldDirections = new Set();
 const mapEls = new Map();
+const remoteWalkTimers = new Map();
 const localPos = { x: CHANNELS.team.x, y: CHANNELS.team.y };
 let moveTarget = null;
 let moveRAF = null;
 let lastMoveEmit = 0;
+let facing = "down"; // direcao do sprite (down/left/right/up)
 
 els.floorPlan.addEventListener("keydown", (event) => {
   const dir = KEY_DIRECTIONS[event.key];
@@ -183,6 +203,7 @@ els.floorPlan.addEventListener("keydown", (event) => {
 
   event.preventDefault();
   moveTarget = null; // teclado cancela a caminhada por clique
+  facing = dir;
   if (!heldDirections.has(dir)) {
     heldDirections.add(dir);
     startMoveLoop();
@@ -228,9 +249,36 @@ socket.on("presence:joined", (user) => {
 });
 
 socket.on("presence:updated", (user) => {
+  const previous = state.users.get(user.id);
   state.users.set(user.id, user);
   render();
+  animateRemoteWalk(user, previous);
 });
+
+// Anima o sprite de quem se move remotamente: direcao pelo delta de posicao
+// e um timer curto que devolve a pose parada quando os updates cessam.
+function animateRemoteWalk(user, previous) {
+  if (!previous || user.id === state.selfId) return;
+
+  const dx = user.x - previous.x;
+  const dy = user.y - previous.y;
+  if (Math.hypot(dx, dy) < 0.05) return;
+
+  const el = mapEls.get(user.id);
+  if (!el) return;
+
+  const dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? "left" : "right") : (dy < 0 ? "up" : "down");
+  setSpritePose(el, dir, true);
+  clearTimeout(remoteWalkTimers.get(user.id));
+  remoteWalkTimers.set(
+    user.id,
+    setTimeout(() => {
+      const mapEl = mapEls.get(user.id);
+      if (mapEl) setSpritePose(mapEl, dir, false);
+      remoteWalkTimers.delete(user.id);
+    }, 260)
+  );
+}
 
 socket.on("presence:self", (user) => {
   // O cliente e a autoridade sobre a propria posicao e canal; preservamos o estado local.
@@ -244,6 +292,8 @@ socket.on("presence:self", (user) => {
 
 socket.on("presence:left", (id) => {
   state.users.delete(id);
+  clearTimeout(remoteWalkTimers.get(id));
+  remoteWalkTimers.delete(id);
   removeParticipantMedia(id);
   render();
 });
@@ -254,6 +304,7 @@ socket.on("chat:message", (message) => {
     state.messages.splice(0, state.messages.length - 120);
   }
   renderChat(true);
+  showChatBubble(mapEls.get(message.userId), message.userId, message.text);
 });
 
 async function joinVoice() {
@@ -717,6 +768,7 @@ function startMoveLoop() {
       const dy = moveTarget.y - localPos.y;
       const distance = Math.hypot(dx, dy);
       const stepDist = MOVE_SPEED * 1.7 * dt;
+      facing = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? "left" : "right") : (dy < 0 ? "up" : "down");
       if (distance <= stepDist) {
         localPos.x = moveTarget.x;
         localPos.y = moveTarget.y;
@@ -732,6 +784,7 @@ function startMoveLoop() {
       localPos.x = clamp(localPos.x, 8, 92);
       localPos.y = clamp(localPos.y, 12, 88);
       applySelfPosition();
+      setWalking(true);
       if (now - lastMoveEmit >= EMIT_INTERVAL) emitPosition(now);
     }
 
@@ -749,7 +802,8 @@ function startMoveLoop() {
 }
 
 function setWalking(walking) {
-  mapEls.get(state.selfId)?.classList.toggle("walking", walking);
+  const el = mapEls.get(state.selfId);
+  if (el) setSpritePose(el, facing, walking);
 }
 
 function applySelfPosition() {
@@ -965,7 +1019,7 @@ function renderMap() {
     const y = isSelf ? localPos.y : user.y;
     el.style.left = `${x}%`;
     el.style.top = `${y}%`;
-    applyAvatar(el, user);
+    applyMapSprite(el, user);
     el.classList.toggle("speaking", state.speakingIds.has(user.id));
   }
 
@@ -1124,10 +1178,13 @@ function setMicStatus(status, level) {
 function setAvatar(avatar) {
   state.avatar = avatar;
   localStorage.setItem("gt.avatar", avatar);
+  const self = state.users.get(state.selfId);
+  if (self) self.avatar = avatar;
   syncSelfPanel();
 
   if (state.selfId) {
     socket.emit("presence:update", { avatar });
+    render();
   }
 }
 
@@ -1142,9 +1199,12 @@ function applyName(name) {
   if (!clean) return;
   state.name = clean;
   localStorage.setItem("gt.name", clean);
+  const self = state.users.get(state.selfId);
+  if (self) self.name = clean;
   syncSelfPanel();
   if (state.selfId) {
     socket.emit("presence:update", { name: clean });
+    render();
   }
 }
 
