@@ -1,25 +1,46 @@
 export function createSpaceStore() {
   const spaces = new Map();
   const messages = new Map();
+  const notes = new Map(); // post-its do mural, por espaco
+  const events = new Map(); // eventos da agenda, por espaco
+  const desks = new Map(); // mesas reivindicadas (dono, decoracao, recados), por espaco
+  const roomLocks = new Map(); // salas trancadas (privadas), por espaco
+
+  const lazy = (map, spaceId, make) => {
+    if (!map.has(spaceId)) map.set(spaceId, make());
+    return map.get(spaceId);
+  };
 
   return {
     getSpace(spaceId) {
-      if (!spaces.has(spaceId)) {
-        spaces.set(spaceId, new Map());
-      }
-      return spaces.get(spaceId);
+      return lazy(spaces, spaceId, () => new Map());
     },
 
     getMessages(spaceId) {
-      if (!messages.has(spaceId)) {
-        messages.set(spaceId, []);
-      }
-      return messages.get(spaceId);
+      return lazy(messages, spaceId, () => []);
+    },
+
+    getNotes(spaceId) {
+      return lazy(notes, spaceId, () => []);
+    },
+
+    getEvents(spaceId) {
+      return lazy(events, spaceId, () => []);
+    },
+
+    getDesks(spaceId) {
+      return lazy(desks, spaceId, () => new Map());
+    },
+
+    getRoomLocks(spaceId) {
+      return lazy(roomLocks, spaceId, () => new Map());
     },
 
     deleteSpace(spaceId) {
       spaces.delete(spaceId);
       messages.delete(spaceId);
+      notes.delete(spaceId);
+      // agenda, mesas e trancas sobrevivem ao espaco esvaziar (memoria do escritorio)
     }
   };
 }

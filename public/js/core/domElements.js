@@ -33,7 +33,44 @@ export const els = {
   chatBadge: document.querySelector("#chatBadge"),
   chatWinBadge: document.querySelector("#chatWinBadge"),
   mediaButton: document.querySelector("#mediaButton"),
+  noteButton: document.querySelector("#noteButton"),
+  dashButton: document.querySelector("#dashButton"),
+  calButton: document.querySelector("#calButton"),
+  reactButton: document.querySelector("#reactButton"),
   reactionBar: document.querySelector("#reactionBar"),
+
+  // post-its
+  noteComposer: document.querySelector("#noteComposer"),
+  noteText: document.querySelector("#noteText"),
+  noteSwatches: document.querySelector("#noteSwatches"),
+  notePlace: document.querySelector("#notePlace"),
+  noteCancel: document.querySelector("#noteCancel"),
+  notesLayer: document.querySelector("#notesLayer"),
+
+  // dashboard
+  dashWindow: document.querySelector("#dashWindow"),
+  dashSpaceName: document.querySelector("#dashSpaceName"),
+  dashOnline: document.querySelector("#dashOnline"),
+  dashInVoice: document.querySelector("#dashInVoice"),
+  dashMessages: document.querySelector("#dashMessages"),
+  dashNotes: document.querySelector("#dashNotes"),
+  dashRooms: document.querySelector("#dashRooms"),
+
+  // agenda
+  calWindow: document.querySelector("#calWindow"),
+  calPrev: document.querySelector("#calPrev"),
+  calNext: document.querySelector("#calNext"),
+  calMonthLabel: document.querySelector("#calMonthLabel"),
+  calGrid: document.querySelector("#calGrid"),
+  calDayLabel: document.querySelector("#calDayLabel"),
+  calEvents: document.querySelector("#calEvents"),
+  calForm: document.querySelector("#calForm"),
+  calTime: document.querySelector("#calTime"),
+  calTitle: document.querySelector("#calTitle"),
+
+  // mesas e popover do mapa
+  deskMarkers: document.querySelector("#deskMarkers"),
+  mapPopover: document.querySelector("#mapPopover"),
 
   // mapa
   floorPlan: document.querySelector("#floorPlan"),

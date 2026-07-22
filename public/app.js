@@ -53,6 +53,14 @@ import { startSceneFx } from "./js/ui/sceneFx.js";
 import { createWindow } from "./js/ui/windowManager.js";
 import { initReactions } from "./js/features/reactions.js";
 import { showChatBubble } from "./js/features/chatBubbles.js";
+import { initStickyNotes, isPlacingNote, noteCount } from "./js/features/stickyNotes.js";
+import { initCalendar } from "./js/features/calendarPanel.js";
+import {
+  initDeskManager,
+  isRoomLocked,
+  renderDeskMarkers,
+  roomLockOwner
+} from "./js/features/deskManager.js";
 
 function currentAudioOptions() {
   return audioOptions(state.devices.audioInput);
@@ -80,6 +88,7 @@ function applyMapToUi() {
   paintMapScene(els.floorCanvas, map);
   renderRoomLabels(map);
   renderAreaButtons(map);
+  renderDeskMarkers();
   localPos.x = map.spawn.x;
   localPos.y = map.spawn.y;
   state.channel = roomFromPosition(localPos.x, localPos.y) || "lounge";
@@ -90,7 +99,9 @@ function renderRoomLabels(map) {
   for (const room of map.rooms) {
     const label = document.createElement("span");
     label.className = "room-label";
-    label.textContent = room.label;
+    const locked = isRoomLocked(room.id);
+    label.textContent = locked ? `🔒 ${room.label}` : room.label;
+    if (locked) label.title = `Sala privada (por ${roomLockOwner(room.id)})`;
     label.style.left = `${room.rect.x1 + 1.5}%`;
     label.style.top = `${room.rect.y1 + 2.5}%`;
     label.style.color = room.carpet.tint;
@@ -257,6 +268,80 @@ const mediaWin = createWindow(els.mediaWindow, {
     els.mediaButton.classList.toggle("active", open);
     els.mediaButton.setAttribute("aria-pressed", String(open));
   }
+});
+
+const dashWin = createWindow(els.dashWindow, {
+  key: "dash",
+  onToggle(open) {
+    els.dashButton.classList.toggle("active", open);
+    els.dashButton.setAttribute("aria-pressed", String(open));
+    if (open) renderDashboard();
+  }
+});
+
+els.dashButton.addEventListener("click", () => {
+  if (!dashWin.isOpen()) {
+    dashWin.open();
+  } else if (dashWin.isMinimized()) {
+    dashWin.restore();
+  } else {
+    dashWin.close();
+  }
+});
+
+// Post-its colaborativos no mapa.
+initStickyNotes({
+  socket,
+  elements: els,
+  getSelfId: () => state.selfId,
+  onChange: () => renderDashboard()
+});
+
+// Agenda compartilhada (janela flutuante).
+const calWin = createWindow(els.calWindow, {
+  key: "cal",
+  onToggle(open) {
+    els.calButton.classList.toggle("active", open);
+    els.calButton.setAttribute("aria-pressed", String(open));
+  }
+});
+
+initCalendar({
+  socket,
+  elements: els,
+  getSelfId: () => state.selfId
+});
+
+els.calButton.addEventListener("click", () => {
+  if (!calWin.isOpen()) {
+    calWin.open();
+  } else if (calWin.isMinimized()) {
+    calWin.restore();
+  } else {
+    calWin.close();
+  }
+});
+
+// Mesas e salas privadas (clique direito no mapa).
+initDeskManager({
+  socket,
+  elements: els,
+  getSelfName: () => state.name || "Convidado",
+  onRoomLocksChanged: () => renderRoomLabels(activeMap())
+});
+
+// Popover de reacoes: abre/fecha pelo botao 😊 da barra.
+els.reactButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  const open = els.reactionBar.classList.toggle("open");
+  els.reactButton.classList.toggle("active", open);
+});
+
+document.addEventListener("click", (event) => {
+  if (!els.reactionBar.classList.contains("open")) return;
+  if (els.reactionBar.contains(event.target) || els.reactButton.contains(event.target)) return;
+  els.reactionBar.classList.remove("open");
+  els.reactButton.classList.remove("active");
 });
 
 // --- Mensagens nao lidas (estilo Meet): badge no botao e na barrinha ---
@@ -488,6 +573,7 @@ window.addEventListener("blur", () => heldDirections.clear());
 
 els.floorPlan.addEventListener("pointerdown", (event) => {
   if (!state.selfId) return;
+  if (isPlacingNote()) return; // o clique esta colando um post-it, nao andando
 
   const rect = els.floorPlan.getBoundingClientRect();
   const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -545,13 +631,13 @@ function startMoveLoop() {
     const prevX = localPos.x;
     const prevY = localPos.y;
     const nx = clamp(localPos.x + velocity.x * dt, BOUNDS.x1, BOUNDS.x2);
-    if (isBlocked(nx, localPos.y)) {
+    if (blockedAt(nx, localPos.y)) {
       velocity.x = 0;
     } else {
       localPos.x = nx;
     }
     const ny = clamp(localPos.y + velocity.y * dt, BOUNDS.y1, BOUNDS.y2);
-    if (isBlocked(localPos.x, ny)) {
+    if (blockedAt(localPos.x, ny)) {
       velocity.y = 0;
     } else {
       localPos.y = ny;
@@ -589,6 +675,17 @@ function startMoveLoop() {
   };
 
   moveRAF = requestAnimationFrame(step);
+}
+
+// Colisao do cenario + salas trancadas: quem esta fora de uma sala privada
+// nao entra (a nao ser que tenha sido quem trancou); quem esta dentro sai livre.
+function blockedAt(x, y) {
+  if (isBlocked(x, y)) return true;
+
+  const target = roomFromPosition(x, y);
+  if (!target || !isRoomLocked(target)) return false;
+  if (roomFromPosition(localPos.x, localPos.y) === target) return false; // ja esta dentro
+  return roomLockOwner(target) !== (state.name || "Convidado");
 }
 
 function setWalking(walking) {
@@ -646,6 +743,7 @@ socket.on("space:ready", ({ selfId, users, messages = [] }) => {
   state.selfId = selfId;
   state.users = new Map(users.map((user) => [user.id, user]));
   state.messages = messages;
+  sessionMessages = messages.length;
   const self = state.users.get(selfId);
   if (self) {
     localPos.x = self.x;
@@ -665,9 +763,42 @@ socket.on("presence:joined", (user) => {
 socket.on("presence:updated", (user) => {
   const previous = state.users.get(user.id);
   state.users.set(user.id, user);
-  render();
+
+  // Caminho leve: se so a posicao mudou (caso mais comum, ~11x/s por usuario
+  // andando), atualiza apenas o avatar dele em vez de redesenhar as listas.
+  if (previous && onlyPositionChanged(previous, user)) {
+    const el = mapEls.get(user.id);
+    if (el) {
+      el.style.left = `${user.x}%`;
+      el.style.top = `${user.y}%`;
+    }
+    scheduleProximity(false);
+    scheduleLightRefresh();
+  } else {
+    render();
+  }
   animateRemoteWalk(user, previous);
 });
+
+function onlyPositionChanged(a, b) {
+  return (
+    a.name === b.name &&
+    a.avatar === b.avatar &&
+    a.color === b.color &&
+    a.inVoice === b.inVoice &&
+    a.muted === b.muted
+  );
+}
+
+// Chips de voz e dashboard dependem de distancia; atualizamos no maximo ~3x/s.
+let lightRefreshAt = 0;
+function scheduleLightRefresh() {
+  const now = performance.now();
+  if (now - lightRefreshAt < 350) return;
+  lightRefreshAt = now;
+  renderVoiceStrip();
+  renderDashboard();
+}
 
 socket.on("presence:self", (user) => {
   // O cliente e a autoridade sobre a propria posicao e canal; preservamos o estado local.
@@ -689,6 +820,8 @@ socket.on("presence:left", (id) => {
 
 socket.on("chat:message", (message) => {
   state.messages.push(message);
+  sessionMessages += 1;
+  renderDashboard();
   if (state.messages.length > 120) {
     state.messages.splice(0, state.messages.length - 120);
   }
@@ -1236,7 +1369,59 @@ function render() {
   renderVoiceStrip();
   renderMap();
   renderChat();
+  renderDashboard();
   syncSelfPanel();
+}
+
+// --- Dashboard do espaco (janela flutuante) ---
+let sessionMessages = 0;
+
+function renderDashboard() {
+  if (!dashWin.isOpen()) return;
+
+  const map = activeMap();
+  els.dashSpaceName.textContent = `${map.label} · ${map.tagline}`;
+
+  const users = Array.from(state.users.values());
+  els.dashOnline.textContent = String(users.length);
+  els.dashInVoice.textContent = String(users.filter((user) => user.inVoice).length);
+  els.dashMessages.textContent = String(sessionMessages);
+  els.dashNotes.textContent = String(noteCount());
+
+  // ocupacao por area (salas + lounge), com barra proporcional
+  const areas = [
+    ...map.rooms.map((room) => ({ id: room.id, label: room.label, tint: room.carpet.tint })),
+    { id: map.lounge.id, label: map.lounge.label, tint: map.lounge.tint }
+  ];
+  const counts = new Map(areas.map((area) => [area.id, 0]));
+  for (const user of users) {
+    const room = roomFromPosition(user.x, user.y) || map.lounge.id;
+    counts.set(room, (counts.get(room) || 0) + 1);
+  }
+  const max = Math.max(1, ...counts.values());
+
+  els.dashRooms.innerHTML = "";
+  for (const area of areas) {
+    const count = counts.get(area.id) || 0;
+    const row = document.createElement("div");
+    row.className = "dash-room";
+
+    const label = document.createElement("span");
+    label.textContent = area.label;
+
+    const bar = document.createElement("div");
+    bar.className = "dash-bar";
+    const fill = document.createElement("span");
+    fill.style.width = `${Math.round((count / max) * 100)}%`;
+    fill.style.background = area.tint;
+    bar.append(fill);
+
+    const value = document.createElement("strong");
+    value.textContent = String(count);
+
+    row.append(label, bar, value);
+    els.dashRooms.append(row);
+  }
 }
 
 function renderChannels() {

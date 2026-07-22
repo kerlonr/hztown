@@ -22,49 +22,87 @@
           <canvas id="floorCanvas" class="floor-canvas" aria-hidden="true"></canvas>
           <canvas id="fxCanvas" class="floor-canvas fx-canvas" aria-hidden="true"></canvas>
           <div id="roomLabels" class="room-labels" aria-hidden="true"></div>
+          <div id="notesLayer" class="notes-layer" aria-label="Post-its do mural"></div>
+          <div id="deskMarkers" class="desk-markers" aria-label="Mesas reivindicadas"></div>
           <div class="proximity-zone" id="proximityZone"></div>
           <div id="avatarsLayer" class="avatars-layer"></div>
         </div>
       </div>
 
-      <!-- HUD: menu (esquerda), status (topo), janelas (direita), dock (baixo) -->
-      <button id="menuButton" class="hud-button hud-menu" aria-label="Abrir menu" title="Menu" aria-expanded="false">
-        <span class="tool-icon" data-icon="menu"></span>
-      </button>
-
+      <!-- Status e chips de voz no topo -->
       <div class="hud-top">
         <span id="connectionStatus" class="status-pill">LiveKit pronto</span>
         <div id="voiceTiles" class="voice-tiles" aria-label="Quem voce ouve"></div>
       </div>
 
-      <div class="hud-right">
-        <button id="chatButton" class="hud-button" aria-label="Abrir chat" title="Chat" type="button">
-          <span class="tool-icon" data-icon="message"></span>
-          <span id="chatBadge" class="badge" hidden>0</span>
-        </button>
-        <button id="mediaButton" class="hud-button" aria-label="Abrir video e tela" title="Video e tela" type="button">
-          <span class="tool-icon" data-icon="monitor"></span>
-        </button>
+      <!-- Compositor de post-it -->
+      <div id="noteComposer" class="note-composer" aria-label="Novo post-it">
+        <textarea id="noteText" maxlength="160" rows="3" placeholder="Escreva sua ideia..."></textarea>
+        <div class="note-composer-row">
+          <div id="noteSwatches" class="note-swatches"></div>
+          <div class="note-composer-actions">
+            <button id="noteCancel" class="ghost-button" type="button">Cancelar</button>
+            <button id="notePlace" class="primary-button wide" type="button">Colar no mapa</button>
+          </div>
+        </div>
       </div>
 
+      <!-- Popover de reacoes (abre a partir da barra de ferramentas) -->
       <div id="reactionBar" class="reaction-bar" aria-label="Reacoes rapidas"></div>
 
-      <div class="dock" role="toolbar" aria-label="Controles de chamada">
-        <button id="muteButton" class="tool-button" aria-label="Mutar microfone" title="Mutar microfone" disabled>
-          <span id="muteIcon" class="tool-icon" data-icon="mic"></span>
-        </button>
-        <button id="cameraButton" class="tool-button" aria-label="Abrir camera" title="Abrir camera" disabled>
-          <span id="cameraIcon" class="tool-icon" data-icon="video"></span>
-        </button>
-        <button id="voiceButton" class="primary-button call-button" aria-label="Entrar na voz" title="Entrar na voz">
-          <span id="voiceIcon" class="tool-icon" data-icon="phone"></span>
-        </button>
-        <button id="screenButton" class="tool-button" aria-label="Transmitir tela" title="Transmitir tela" disabled>
-          <span id="screenIcon" class="tool-icon" data-icon="monitor"></span>
-        </button>
-        <button id="settingsButton" class="tool-button" aria-label="Configuracoes" title="Configuracoes" type="button">
-          <span class="tool-icon" data-icon="settings"></span>
-        </button>
+      <!-- Menu contextual de mesa/sala (clique direito no mapa) -->
+      <div id="mapPopover" class="map-popover" aria-label="Acoes de mesa e sala"></div>
+
+      <!-- Barra unica de ferramentas (footer estilo Gather/Meet) -->
+      <div class="toolbar" role="toolbar" aria-label="Ferramentas">
+        <div class="toolbar-group">
+          <button id="menuButton" class="tool-button" aria-label="Abrir menu" title="Menu" aria-expanded="false">
+            <span class="tool-icon" data-icon="menu"></span>
+          </button>
+        </div>
+
+        <div class="toolbar-group">
+          <button id="muteButton" class="tool-button" aria-label="Mutar microfone" title="Mutar microfone (Ctrl+D)" disabled>
+            <span id="muteIcon" class="tool-icon" data-icon="mic"></span>
+          </button>
+          <button id="cameraButton" class="tool-button" aria-label="Abrir camera" title="Abrir camera (Ctrl+E)" disabled>
+            <span id="cameraIcon" class="tool-icon" data-icon="video"></span>
+          </button>
+          <button id="voiceButton" class="primary-button call-button" aria-label="Entrar na voz" title="Entrar na voz">
+            <span id="voiceIcon" class="tool-icon" data-icon="phone"></span>
+          </button>
+          <button id="screenButton" class="tool-button" aria-label="Transmitir tela" title="Transmitir tela" disabled>
+            <span id="screenIcon" class="tool-icon" data-icon="monitor"></span>
+          </button>
+          <button id="reactButton" class="tool-button" aria-label="Reacoes" title="Reacoes (1-6)" type="button">
+            <span class="tool-icon reaction-emoji">😊</span>
+          </button>
+        </div>
+
+        <div class="toolbar-group">
+          <button id="chatButton" class="tool-button" aria-label="Abrir chat" title="Chat" type="button">
+            <span class="tool-icon" data-icon="message"></span>
+            <span id="chatBadge" class="badge" hidden>0</span>
+          </button>
+          <button id="mediaButton" class="tool-button" aria-label="Abrir video e tela" title="Video e tela" type="button">
+            <span class="tool-icon" data-icon="grid"></span>
+          </button>
+          <button id="noteButton" class="tool-button" aria-label="Colar post-it" title="Post-it" type="button">
+            <span class="tool-icon" data-icon="note"></span>
+          </button>
+          <button id="dashButton" class="tool-button" aria-label="Abrir dashboard" title="Dashboard" type="button">
+            <span class="tool-icon" data-icon="chart"></span>
+          </button>
+          <button id="calButton" class="tool-button" aria-label="Abrir agenda" title="Agenda" type="button">
+            <span class="tool-icon" data-icon="calendar"></span>
+          </button>
+        </div>
+
+        <div class="toolbar-group">
+          <button id="settingsButton" class="tool-button" aria-label="Configuracoes" title="Configuracoes" type="button">
+            <span class="tool-icon" data-icon="settings"></span>
+          </button>
+        </div>
       </div>
 
       <!-- Drawer esquerdo: areas, quem esta online e seu perfil -->
@@ -152,6 +190,81 @@
           </div>
         </div>
       </section>
+
+      <!-- Janela flutuante: dashboard do espaco -->
+      <section id="dashWindow" class="float-window dash-window" aria-label="Dashboard do espaco">
+        <header class="window-head" data-drag>
+          <div class="window-title">
+            <strong>Dashboard</strong>
+            <small id="dashSpaceName">HZ HQ</small>
+          </div>
+          <div class="window-actions">
+            <button class="icon-button" data-min aria-label="Minimizar" title="Minimizar" type="button">
+              <span class="tool-icon" data-icon="minimize"></span>
+            </button>
+            <button class="icon-button" data-close aria-label="Fechar dashboard" title="Fechar" type="button">
+              <span class="tool-icon" data-icon="close"></span>
+            </button>
+          </div>
+        </header>
+        <div class="dash-body">
+          <div class="dash-cards">
+            <div class="dash-card">
+              <strong id="dashOnline">0</strong>
+              <small>online</small>
+            </div>
+            <div class="dash-card">
+              <strong id="dashInVoice">0</strong>
+              <small>em chamada</small>
+            </div>
+            <div class="dash-card">
+              <strong id="dashMessages">0</strong>
+              <small>mensagens</small>
+            </div>
+            <div class="dash-card">
+              <strong id="dashNotes">0</strong>
+              <small>post-its</small>
+            </div>
+          </div>
+          <p class="section-title">Ocupacao por area</p>
+          <div id="dashRooms" class="dash-rooms"></div>
+        </div>
+      </section>
+
+      <!-- Janela flutuante: agenda compartilhada -->
+      <section id="calWindow" class="float-window cal-window" aria-label="Agenda do espaco">
+        <header class="window-head" data-drag>
+          <div class="window-title">
+            <strong>Agenda</strong>
+            <small>eventos do espaco</small>
+          </div>
+          <div class="window-actions">
+            <button class="icon-button" data-min aria-label="Minimizar" title="Minimizar" type="button">
+              <span class="tool-icon" data-icon="minimize"></span>
+            </button>
+            <button class="icon-button" data-close aria-label="Fechar agenda" title="Fechar" type="button">
+              <span class="tool-icon" data-icon="close"></span>
+            </button>
+          </div>
+        </header>
+        <div class="cal-body">
+          <div class="cal-nav">
+            <button id="calPrev" class="icon-button" type="button" aria-label="Mes anterior">‹</button>
+            <strong id="calMonthLabel">Mes</strong>
+            <button id="calNext" class="icon-button" type="button" aria-label="Proximo mes">›</button>
+          </div>
+          <div id="calGrid" class="cal-grid"></div>
+          <p id="calDayLabel" class="section-title">Eventos</p>
+          <div id="calEvents" class="cal-events"></div>
+          <form id="calForm" class="cal-form">
+            <input id="calTime" type="time" aria-label="Horario" />
+            <input id="calTitle" maxlength="80" placeholder="Novo evento..." required />
+            <button class="primary-button" type="submit" aria-label="Adicionar evento" title="Adicionar">
+              <span class="tool-icon" data-icon="send"></span>
+            </button>
+          </form>
+        </div>
+      </section>
     </main>
 
     <dialog id="joinDialog" class="join-dialog">
@@ -184,7 +297,8 @@
         <button class="primary-button wide" value="confirm">Entrar no espaco</button>
         <p class="join-hint">
           Ande com <kbd>WASD</kbd> ou clique no mapa · Reaja com <kbd>1</kbd>-<kbd>6</kbd> ·
-          <kbd>Ctrl</kbd>+<kbd>D</kbd> mic · <kbd>Ctrl</kbd>+<kbd>E</kbd> camera
+          <kbd>Ctrl</kbd>+<kbd>D</kbd> mic · <kbd>Ctrl</kbd>+<kbd>E</kbd> camera ·
+          <strong>Clique direito</strong> numa mesa ou sala para reivindicar, decorar e trancar
         </p>
       </form>
     </dialog>

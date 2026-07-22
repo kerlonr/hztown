@@ -46,19 +46,9 @@ const ICONS = {
     '<path d="M15.7 14.8a2 2 0 0 1 2.1-.5c.8.3 1.6.5 2.5.6a2 2 0 0 1 1.7 2v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1"/>',
     '<path d="M4.1 2H4a2 2 0 0 0-1.9 2.2 19.8 19.8 0 0 0 3.1 8.6"/>'
   ],
-  gauge: [
-    '<path d="M12 14v-4"/>',
-    '<path d="M4.9 19a9 9 0 1 1 14.2 0"/>',
-    '<path d="M8 19h8"/>'
-  ],
   send: [
     '<path d="m22 2-7 20-4-9-9-4Z"/>',
     '<path d="M22 2 11 13"/>'
-  ],
-  more: [
-    '<circle cx="12" cy="12" r="1"/>',
-    '<circle cx="19" cy="12" r="1"/>',
-    '<circle cx="5" cy="12" r="1"/>'
   ],
   settings: [
     '<path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>',
@@ -87,8 +77,31 @@ const ICONS = {
   minimize: [
     '<path d="M5 12h14"/>'
   ],
-  check: [
-    '<path d="M20 6 9 17l-5-5"/>'
+  note: [
+    '<path d="M4 4h16v11l-5 5H4Z"/>',
+    '<path d="M15 20v-5h5"/>',
+    '<path d="M8 9h8"/>',
+    '<path d="M8 13h5"/>'
+  ],
+  grid: [
+    '<rect x="3" y="3" width="8" height="8" rx="1.5"/>',
+    '<rect x="13" y="3" width="8" height="8" rx="1.5"/>',
+    '<rect x="3" y="13" width="8" height="8" rx="1.5"/>',
+    '<rect x="13" y="13" width="8" height="8" rx="1.5"/>'
+  ],
+  chart: [
+    '<path d="M3 3v18h18"/>',
+    '<path d="M7 15v-4"/>',
+    '<path d="M12 15V7"/>',
+    '<path d="M17 15v-7"/>'
+  ],
+  calendar: [
+    '<rect x="3" y="5" width="18" height="16" rx="2"/>',
+    '<path d="M8 3v4"/>',
+    '<path d="M16 3v4"/>',
+    '<path d="M3 10h18"/>',
+    '<path d="M8 14h2"/>',
+    '<path d="M14 14h2"/>'
   ]
 };
 
