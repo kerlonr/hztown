@@ -55,6 +55,8 @@ import { initReactions } from "./js/features/reactions.js";
 import { showChatBubble } from "./js/features/chatBubbles.js";
 import { initStickyNotes, isPlacingNote, noteCount } from "./js/features/stickyNotes.js";
 import { initCalendar } from "./js/features/calendarPanel.js";
+import { initBuildMode, isBuilding } from "./js/features/buildMode.js";
+import { initTaskBoard, taskCounts } from "./js/features/taskBoard.js";
 import {
   initDeskManager,
   isRoomLocked,
@@ -309,7 +311,8 @@ const calWin = createWindow(els.calWindow, {
 initCalendar({
   socket,
   elements: els,
-  getSelfId: () => state.selfId
+  getSelfId: () => state.selfId,
+  onGoToRoom: (roomId) => setChannel(roomId)
 });
 
 els.calButton.addEventListener("click", () => {
@@ -321,6 +324,74 @@ els.calButton.addEventListener("click", () => {
     calWin.close();
   }
 });
+
+// Quadro de tarefas (kanban estilo Monday).
+const taskWin = createWindow(els.taskWindow, {
+  key: "tasks",
+  onToggle(open) {
+    els.taskButton.classList.toggle("active", open);
+    els.taskButton.setAttribute("aria-pressed", String(open));
+  }
+});
+
+initTaskBoard({
+  socket,
+  elements: els,
+  getSelfName: () => state.name || "Convidado",
+  getOnlineUsers: () => Array.from(state.users.values())
+});
+
+els.taskButton.addEventListener("click", () => {
+  if (!taskWin.isOpen()) {
+    taskWin.open();
+  } else if (taskWin.isMinimized()) {
+    taskWin.restore();
+  } else {
+    taskWin.close();
+  }
+});
+
+// Modo construir: monte seu proprio ambiente.
+initBuildMode({
+  socket,
+  elements: els,
+  getSelfName: () => state.name || "Convidado",
+  onPropsChange: () => renderDashboard()
+});
+
+// Zoom do mapa com camera seguindo o personagem (sala "maior").
+const ZOOM_LEVELS = [1, 1.35, 1.7, 2.1];
+let zoomIndex = Math.min(ZOOM_LEVELS.length - 1, Math.max(0, Number(localStorage.getItem("hz.zoom") || 0)));
+
+function applyZoom() {
+  const zoom = ZOOM_LEVELS[zoomIndex];
+  els.stage.classList.toggle("zoomed", zoom > 1);
+  els.floorPlan.style.width =
+    zoom === 1 ? "" : `calc(min(100vw - 24px, (100dvh - 98px) * 1.6) * ${zoom})`;
+  els.zoomOutButton.disabled = zoomIndex === 0;
+  els.zoomInButton.disabled = zoomIndex === ZOOM_LEVELS.length - 1;
+  localStorage.setItem("hz.zoom", String(zoomIndex));
+  followCamera();
+}
+
+// Mantem o proprio avatar no centro da tela quando o mapa esta ampliado.
+function followCamera() {
+  if (ZOOM_LEVELS[zoomIndex] === 1) return;
+  els.stage.scrollLeft = (localPos.x / 100) * els.floorPlan.offsetWidth - els.stage.clientWidth / 2;
+  els.stage.scrollTop = (localPos.y / 100) * els.floorPlan.offsetHeight - els.stage.clientHeight / 2;
+}
+
+els.zoomInButton.addEventListener("click", () => {
+  zoomIndex = Math.min(ZOOM_LEVELS.length - 1, zoomIndex + 1);
+  applyZoom();
+});
+
+els.zoomOutButton.addEventListener("click", () => {
+  zoomIndex = Math.max(0, zoomIndex - 1);
+  applyZoom();
+});
+
+applyZoom();
 
 // Mesas e salas privadas (clique direito no mapa).
 initDeskManager({
@@ -574,6 +645,7 @@ window.addEventListener("blur", () => heldDirections.clear());
 els.floorPlan.addEventListener("pointerdown", (event) => {
   if (!state.selfId) return;
   if (isPlacingNote()) return; // o clique esta colando um post-it, nao andando
+  if (isBuilding()) return; // no modo construir, o clique coloca moveis
 
   const rect = els.floorPlan.getBoundingClientRect();
   const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -707,6 +779,7 @@ function applySelfPosition() {
   els.proximityZone.style.left = `${localPos.x}%`;
   els.proximityZone.style.top = `${localPos.y}%`;
   scheduleProximity(false);
+  followCamera();
 }
 
 function emitPosition(now = performance.now()) {
@@ -1380,7 +1453,9 @@ function renderDashboard() {
   if (!dashWin.isOpen()) return;
 
   const map = activeMap();
-  els.dashSpaceName.textContent = `${map.label} · ${map.tagline}`;
+  const openTasks = taskCounts();
+  els.dashSpaceName.textContent =
+    `${map.label} · ${openTasks.todo + openTasks.doing} tarefa(s) abertas`;
 
   const users = Array.from(state.users.values());
   els.dashOnline.textContent = String(users.length);

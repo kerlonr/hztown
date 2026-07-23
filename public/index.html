@@ -15,15 +15,18 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main class="app-shell">
+    <main class="app-shell" id="appShell">
       <!-- Mapa em tela cheia: o palco principal -->
-      <div class="stage">
+      <div class="stage" id="stage">
         <div class="floor-plan" id="floorPlan" tabindex="0" aria-label="Mapa do escritorio">
           <canvas id="floorCanvas" class="floor-canvas" aria-hidden="true"></canvas>
+          <canvas id="propsCanvas" class="floor-canvas" aria-hidden="true"></canvas>
           <canvas id="fxCanvas" class="floor-canvas fx-canvas" aria-hidden="true"></canvas>
           <div id="roomLabels" class="room-labels" aria-hidden="true"></div>
           <div id="notesLayer" class="notes-layer" aria-label="Post-its do mural"></div>
           <div id="deskMarkers" class="desk-markers" aria-label="Mesas reivindicadas"></div>
+          <div id="propMarkers" class="desk-markers" aria-hidden="true"></div>
+          <div id="propHandles" class="prop-handles" aria-label="Editar moveis"></div>
           <div class="proximity-zone" id="proximityZone"></div>
           <div id="avatarsLayer" class="avatars-layer"></div>
         </div>
@@ -50,6 +53,9 @@
       <!-- Popover de reacoes (abre a partir da barra de ferramentas) -->
       <div id="reactionBar" class="reaction-bar" aria-label="Reacoes rapidas"></div>
 
+      <!-- Paleta do modo construir (abre acima da barra) -->
+      <div id="buildPalette" class="build-palette" aria-label="Moveis para colocar"></div>
+
       <!-- Menu contextual de mesa/sala (clique direito no mapa) -->
       <div id="mapPopover" class="map-popover" aria-label="Acoes de mesa e sala"></div>
 
@@ -58,6 +64,12 @@
         <div class="toolbar-group">
           <button id="menuButton" class="tool-button" aria-label="Abrir menu" title="Menu" aria-expanded="false">
             <span class="tool-icon" data-icon="menu"></span>
+          </button>
+          <button id="zoomOutButton" class="tool-button" aria-label="Diminuir zoom" title="Diminuir zoom" type="button">
+            <span class="tool-icon" data-icon="zoom-out"></span>
+          </button>
+          <button id="zoomInButton" class="tool-button" aria-label="Aumentar zoom" title="Aumentar zoom" type="button">
+            <span class="tool-icon" data-icon="zoom-in"></span>
           </button>
         </div>
 
@@ -95,6 +107,12 @@
           </button>
           <button id="calButton" class="tool-button" aria-label="Abrir agenda" title="Agenda" type="button">
             <span class="tool-icon" data-icon="calendar"></span>
+          </button>
+          <button id="taskButton" class="tool-button" aria-label="Abrir tarefas" title="Tarefas" type="button">
+            <span class="tool-icon" data-icon="board"></span>
+          </button>
+          <button id="buildButton" class="tool-button" aria-label="Modo construir" title="Construir (montar seu ambiente)" type="button">
+            <span class="tool-icon" data-icon="hammer"></span>
           </button>
         </div>
 
@@ -141,18 +159,15 @@
         </div>
       </aside>
 
-      <!-- Janela flutuante: chat -->
-      <section id="chatWindow" class="float-window chat-window" aria-label="Chat de texto">
-        <header class="window-head" data-drag>
+      <!-- Barra lateral direita: chat (abre/fecha pelo botao da toolbar) -->
+      <section id="chatWindow" class="float-window chat-window docked" aria-label="Chat de texto">
+        <header class="window-head">
           <div class="window-title">
             <strong>Chat</strong>
             <small id="chatChannelLabel">Team</small>
             <span id="chatWinBadge" class="badge" hidden>0</span>
           </div>
           <div class="window-actions">
-            <button class="icon-button" data-min aria-label="Minimizar" title="Minimizar" type="button">
-              <span class="tool-icon" data-icon="minimize"></span>
-            </button>
             <button class="icon-button" data-close aria-label="Fechar chat" title="Fechar" type="button">
               <span class="tool-icon" data-icon="close"></span>
             </button>
@@ -257,12 +272,45 @@
           <p id="calDayLabel" class="section-title">Eventos</p>
           <div id="calEvents" class="cal-events"></div>
           <form id="calForm" class="cal-form">
-            <input id="calTime" type="time" aria-label="Horario" />
-            <input id="calTitle" maxlength="80" placeholder="Novo evento..." required />
-            <button class="primary-button" type="submit" aria-label="Adicionar evento" title="Adicionar">
+            <div class="cal-form-row">
+              <input id="calTime" type="time" aria-label="Horario" />
+              <select id="calRoom" aria-label="Sala da reuniao"></select>
+            </div>
+            <div class="cal-form-row">
+              <input id="calTitle" maxlength="80" placeholder="Nova reuniao ou evento..." required />
+              <button class="primary-button" type="submit" aria-label="Adicionar evento" title="Adicionar">
+                <span class="tool-icon" data-icon="send"></span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Janela flutuante: quadro de tarefas (kanban) -->
+      <section id="taskWindow" class="float-window task-window" aria-label="Quadro de tarefas">
+        <header class="window-head" data-drag>
+          <div class="window-title">
+            <strong>Tarefas</strong>
+            <small>organize o dia do time</small>
+          </div>
+          <div class="window-actions">
+            <button class="icon-button" data-min aria-label="Minimizar" title="Minimizar" type="button">
+              <span class="tool-icon" data-icon="minimize"></span>
+            </button>
+            <button class="icon-button" data-close aria-label="Fechar tarefas" title="Fechar" type="button">
+              <span class="tool-icon" data-icon="close"></span>
+            </button>
+          </div>
+        </header>
+        <div class="task-body">
+          <form id="taskForm" class="task-form">
+            <input id="taskTitle" maxlength="90" placeholder="Nova tarefa..." required />
+            <select id="taskAssignee" aria-label="Responsavel"></select>
+            <button class="primary-button" type="submit" aria-label="Adicionar tarefa" title="Adicionar">
               <span class="tool-icon" data-icon="send"></span>
             </button>
           </form>
+          <div id="taskColumns" class="task-columns"></div>
         </div>
       </section>
     </main>

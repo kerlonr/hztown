@@ -5,6 +5,8 @@ export function createSpaceStore() {
   const events = new Map(); // eventos da agenda, por espaco
   const desks = new Map(); // mesas reivindicadas (dono, decoracao, recados), por espaco
   const roomLocks = new Map(); // salas trancadas (privadas), por espaco
+  const props = new Map(); // moveis colocados pelos usuarios (modo construir), por espaco
+  const tasks = new Map(); // quadro de tarefas (kanban), por espaco
 
   const lazy = (map, spaceId, make) => {
     if (!map.has(spaceId)) map.set(spaceId, make());
@@ -34,6 +36,14 @@ export function createSpaceStore() {
 
     getRoomLocks(spaceId) {
       return lazy(roomLocks, spaceId, () => new Map());
+    },
+
+    getProps(spaceId) {
+      return lazy(props, spaceId, () => []);
+    },
+
+    getTasks(spaceId) {
+      return lazy(tasks, spaceId, () => []);
     },
 
     deleteSpace(spaceId) {

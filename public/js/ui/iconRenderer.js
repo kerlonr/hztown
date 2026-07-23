@@ -102,6 +102,26 @@ const ICONS = {
     '<path d="M3 10h18"/>',
     '<path d="M8 14h2"/>',
     '<path d="M14 14h2"/>'
+  ],
+  hammer: [
+    '<path d="M13.5 3.5 20.5 10.5 18 13l-7-7Z"/>',
+    '<path d="m12.5 7.5-9 9a2.1 2.1 0 1 0 3 3l9-9"/>'
+  ],
+  board: [
+    '<rect x="3.5" y="3" width="4.6" height="18" rx="1"/>',
+    '<rect x="9.7" y="3" width="4.6" height="12" rx="1"/>',
+    '<rect x="15.9" y="3" width="4.6" height="8" rx="1"/>'
+  ],
+  "zoom-in": [
+    '<circle cx="11" cy="11" r="7"/>',
+    '<path d="m21 21-4.3-4.3"/>',
+    '<path d="M11 8v6"/>',
+    '<path d="M8 11h6"/>'
+  ],
+  "zoom-out": [
+    '<circle cx="11" cy="11" r="7"/>',
+    '<path d="m21 21-4.3-4.3"/>',
+    '<path d="M8 11h6"/>'
   ]
 };
 

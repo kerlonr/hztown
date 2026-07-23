@@ -70,15 +70,18 @@ npm run dev
 ## O que o HZTown entrega
 
 - **Mapa em tela cheia** sem cabecalhos: menu hamburguer a esquerda (areas, online, troca de
-  escritorio), botoes a direita que abrem **janelas flutuantes arrastaveis** de chat e video
+  escritorio), **chat como barra fixa na direita** (abre e fecha pelo botao da toolbar; o mapa
+  encolhe em vez de ficar coberto), video e demais paineis em **janelas flutuantes arrastaveis**
   (posicao lembrada entre sessoes), dock de chamada embaixo.
 - **Tres tamanhos de escritorio** escolhiveis na entrada (com preview real do mapa em cada card):
   Startup (loft + 2 salas), Tech Office (3 salas + lounge) e Tech Campus (4 salas + cafe central).
   Cada tamanho e um espaco proprio com sala LiveKit propria.
 - **Fisica de movimento**: aceleracao, atrito e colisao com paredes e moveis (desliza nas quinas,
   portas de verdade). Visual e colisao vem da mesma geometria (`mapGeometry.js`).
-- **Personagens em pixel art** gerados em canvas (6 skins): caminhada em 4 direcoes, piscada e
-  "respiracao" no idle, retratos pixelados na UI. Fotos enviadas continuam funcionando.
+- **Personagens em pixel art** gerados em canvas (6 skins): estilo chibi de cabecao com cores
+  chapadas — a identidade de cada skin vem da silhueta do cabelo, nao de textura, para nao
+  competir com o cenario. Caminhada em 4 direcoes, piscada e "respiracao" no idle, retratos
+  pixelados na UI. Fotos enviadas continuam funcionando.
 - **Ambiente vivo**: vapor no cafe, LEDs de servidor piscando, monitores tremulando, arcade
   ciclando cores e letreiro neon pulsando (`sceneFx.js`).
 - **Baloes de fala** sobre o avatar e **reacoes emoji** (barra ou teclas 1-6) flutuando.

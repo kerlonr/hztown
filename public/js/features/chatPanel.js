@@ -30,9 +30,11 @@ export function renderChat(forceScroll = false) {
   }
 }
 
-// O chat agora e uma janela flutuante; aqui sincronizamos so classe e botao.
+// O chat e uma barra ancorada na direita; aqui sincronizamos as classes
+// (a do painel e a do shell, que encolhe o palco) e o botao da toolbar.
 export function syncChatPanel() {
   els.chatWindow.classList.toggle("open", state.chatOpen);
+  els.appShell.classList.toggle("chat-open", state.chatOpen);
   els.chatButton.classList.toggle("active", state.chatOpen);
   els.chatButton.setAttribute("aria-pressed", String(state.chatOpen));
   els.chatButton.title = state.chatOpen ? "Fechar chat" : "Abrir chat";

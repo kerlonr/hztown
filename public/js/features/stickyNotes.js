@@ -61,6 +61,15 @@ export function initStickyNotes({ socket, elements, getSelfId, onChange }) {
     onChange?.();
   });
 
+  socket.on("note:moved", ({ id, x, y }) => {
+    const entry = notes.get(id);
+    if (!entry) return;
+    entry.note.x = x;
+    entry.note.y = y;
+    entry.el.style.left = `${x}%`;
+    entry.el.style.top = `${y}%`;
+  });
+
   socket.on("space:ready", ({ notes: initial = [] }) => {
     clearNotes();
     for (const note of initial) addNote(note);
@@ -142,11 +151,52 @@ function addNote(note) {
     el.append(remove);
   }
 
-  // clicar no post-it nao move o avatar
-  el.addEventListener("pointerdown", (event) => event.stopPropagation());
+  // clicar no post-it nao move o avatar; o autor pode arrasta-lo pelo mapa
+  el.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+    if (note.userId !== selfIdRef()) return;
+    if (event.target.closest("button")) return;
+    startNoteDrag(event, note, el);
+  });
 
   els.notesLayer.append(el);
   notes.set(note.id, { note, el });
+}
+
+function startNoteDrag(event, note, el) {
+  event.preventDefault();
+  el.setPointerCapture(event.pointerId);
+  el.classList.add("dragging");
+  let moved = false;
+
+  const toPercent = (ev) => {
+    const rect = els.floorPlan.getBoundingClientRect();
+    return {
+      x: Math.max(2, Math.min(98, ((ev.clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(2, Math.min(98, ((ev.clientY - rect.top) / rect.height) * 100))
+    };
+  };
+
+  const onMove = (ev) => {
+    moved = true;
+    const pos = toPercent(ev);
+    note.x = pos.x;
+    note.y = pos.y;
+    el.style.left = `${pos.x}%`;
+    el.style.top = `${pos.y}%`;
+  };
+
+  const onUp = () => {
+    el.removeEventListener("pointermove", onMove);
+    el.removeEventListener("pointerup", onUp);
+    el.removeEventListener("pointercancel", onUp);
+    el.classList.remove("dragging");
+    if (moved) socketRef.emit("note:move", { id: note.id, x: note.x, y: note.y });
+  };
+
+  el.addEventListener("pointermove", onMove);
+  el.addEventListener("pointerup", onUp);
+  el.addEventListener("pointercancel", onUp);
 }
 
 function removeNote(id) {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "hztown-static-v10";
+const CACHE_NAME = "hztown-static-v11";
 const STATIC_ASSETS = [
   "/",
   "/styles.css",
@@ -8,6 +8,7 @@ const STATIC_ASSETS = [
   "/js/core/appState.js",
   "/js/core/domElements.js",
   "/js/core/mapGeometry.js",
+  "/js/features/buildMode.js",
   "/js/features/calendarPanel.js",
   "/js/features/chatBubbles.js",
   "/js/features/chatPanel.js",
@@ -16,6 +17,7 @@ const STATIC_ASSETS = [
   "/js/features/reactions.js",
   "/js/features/settingsPanel.js",
   "/js/features/stickyNotes.js",
+  "/js/features/taskBoard.js",
   "/js/shared/formattingValues.js",
   "/js/ui/avatarRenderer.js",
   "/js/ui/iconRenderer.js",

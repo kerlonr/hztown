@@ -14,13 +14,17 @@ let zTop = Z_BASE;
 export function createWindow(el, { key, onToggle, onMinToggle } = {}) {
   if (!el) return null;
 
-  const storageKey = key ? `hz.win.${key}` : null;
-  const handle = el.querySelector("[data-drag]");
+  // Janela "docked" (ex.: chat na barra da direita): posicao vem do CSS,
+  // entao nao arrasta, nao redimensiona e nao persiste posicao/minimizado.
+  const docked = el.classList.contains("docked");
+  const storageKey = key && !docked ? `hz.win.${key}` : null;
+  const handle = docked ? null : el.querySelector("[data-drag]");
 
   restoreState();
-  bringToFront();
-
-  el.addEventListener("pointerdown", bringToFront);
+  if (!docked) {
+    bringToFront();
+    el.addEventListener("pointerdown", bringToFront);
+  }
 
   if (handle) {
     handle.addEventListener("pointerdown", startDrag);
@@ -41,6 +45,7 @@ export function createWindow(el, { key, onToggle, onMinToggle } = {}) {
   });
 
   function bringToFront() {
+    if (docked) return;
     zTop += 1;
     el.style.zIndex = String(zTop);
   }

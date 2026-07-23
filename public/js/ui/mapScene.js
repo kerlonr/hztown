@@ -32,6 +32,69 @@ export function monitorScreens(item) {
   return screens;
 }
 
+// Tamanhos (em % do mapa) dos moveis que os usuarios colocam no modo construir.
+// x/y do prop e o CENTRO do movel.
+export const PROP_SIZES = {
+  desk: { w: 7, h: 6 },
+  plant: { w: 2, h: 3 },
+  sofa: { w: 12.5, h: 5 },
+  rug: { w: 10, h: 16 },
+  bookshelf: { w: 11, h: 5.6 },
+  arcade: { w: 4, h: 6 },
+  "cafe-table": { w: 5, h: 8 },
+  pingpong: { w: 11, h: 7 }
+};
+
+// Redesenha a camada de moveis dos usuarios (canvas proprio, sempre limpo).
+export function paintProps(canvas, props) {
+  if (!canvas) return;
+  canvas.width = SCENE_W;
+  canvas.height = SCENE_H;
+  const g = canvas.getContext("2d");
+  g.imageSmoothingEnabled = false;
+
+  // desenha de cima para baixo para a sobreposicao parecer natural
+  const sorted = [...props].sort((a, b) => a.y - b.y);
+  for (const prop of sorted) {
+    const size = PROP_SIZES[prop.kind];
+    if (!size) continue;
+    const x = X(prop.x - size.w / 2);
+    const y = Y(prop.y - size.h / 2);
+    const w = Math.round((size.w / 100) * SCENE_W);
+    const h = Math.round((size.h / 100) * SCENE_H);
+    switch (prop.kind) {
+      case "desk":
+        desk(g, x, y, w, h, 1);
+        break;
+      case "plant":
+        plant(g, X(prop.x) - 3, Y(prop.y));
+        break;
+      case "sofa":
+        sofa(g, x, y, w, h, "#b3593a");
+        break;
+      case "rug": {
+        const r = Math.round(w / 2);
+        circle(g, X(prop.x), Y(prop.y), r, "#8a6a2a");
+        circle(g, X(prop.x), Y(prop.y), r - 6, "#a8842f");
+        circle(g, X(prop.x), Y(prop.y), Math.floor(r / 2) - 1, "#8a6a2a");
+        break;
+      }
+      case "bookshelf":
+        bookshelf(g, x, y, w, h);
+        break;
+      case "arcade":
+        arcade(g, x, y, w, h);
+        break;
+      case "cafe-table":
+        cafeTable(g, X(prop.x), Y(prop.y), Math.round(w / 2) - 6);
+        break;
+      case "pingpong":
+        pingpong(g, x, y, w, h);
+        break;
+    }
+  }
+}
+
 // Pseudo-aleatorio deterministico: o mapa fica identico para todos os clientes.
 function mulberry32(seed) {
   let a = seed;
@@ -56,9 +119,13 @@ export function paintMapScene(canvas, map = activeMap()) {
   for (const room of map.rooms) {
     carpet(g, room.rect, room.carpet.colors);
   }
+  paintWallShadows(g, map); // profundidade: paredes projetam sombra no piso
   paintWalls(g, map);
   paintFurniture(g, map);
 }
+
+// Contorno padrao dos moveis (roxo-escuro, consistente com os personagens).
+const OUTLINE = "#15111f";
 
 function rect(g, x, y, w, h, color) {
   g.fillStyle = color;
@@ -87,7 +154,7 @@ function paintVoid(g) {
 function paintWoodFloor(g) {
   const { x1, y1, x2, y2 } = FLOOR;
   const rnd = mulberry32(42);
-  const tones = ["#4a3527", "#503a2b", "#453023", "#54402f"];
+  const tones = ["#54402d", "#5b4531", "#4e3a29", "#604a35"];
   const plankH = 10;
 
   for (let y = y1; y < y2; y += plankH) {
@@ -96,9 +163,11 @@ function paintWoodFloor(g) {
       const tone = tones[Math.floor(rnd() * tones.length)];
       rect(g, x, y, Math.min(48, x2 - x), Math.min(plankH, y2 - y), tone);
     }
-    rect(g, x1, y, x2 - x1, 1, "#382718");
+    // emendas suaves + brilho no topo de cada tabua (luz de cima)
+    rect(g, x1, y, x2 - x1, 1, "#41301f");
+    rect(g, x1, y + 1, x2 - x1, 1, "rgba(255, 255, 255, 0.035)");
     for (let x = x1 + rowOffset; x < x2; x += 48) {
-      rect(g, x, y, 1, Math.min(plankH, y2 - y), "#382718");
+      rect(g, x, y, 1, Math.min(plankH, y2 - y), "#41301f");
     }
   }
 }
@@ -119,6 +188,20 @@ function carpet(g, roomRect, [base, light, dark]) {
   for (let y = y1 + 8; y < y1 + h - 8; y += 12) {
     for (let x = x1 + 8 + ((y / 12) % 2) * 6; x < x1 + w - 8; x += 12) {
       g.fillRect(Math.round(x), Math.round(y), 1, 1);
+    }
+  }
+}
+
+// Sombras projetadas pelas paredes (luz vinda de cima/esquerda).
+function paintWallShadows(g, map) {
+  g.fillStyle = "rgba(0, 0, 0, 0.20)";
+  // parede externa superior
+  g.fillRect(FLOOR.x1, FLOOR.y1, FLOOR.x2 - FLOOR.x1, 4);
+  for (const seg of map.walls) {
+    if (seg.axis === "h") {
+      g.fillRect(X(seg.x1), Y(seg.y) + 3, X(seg.x2) - X(seg.x1), 3);
+    } else {
+      g.fillRect(X(seg.x) + 2, Y(seg.y1), 3, Y(seg.y2) - Y(seg.y1));
     }
   }
 }
@@ -236,6 +319,7 @@ function paintFurniture(g, map) {
 
 function desk(g, x, y, w, h, monitors) {
   rect(g, x + 2, y + h - 2, w, 4, "rgba(0,0,0,0.35)");
+  rect(g, x - 1, y - 1, w + 2, h + 2, OUTLINE);
   rect(g, x, y, w, h, "#7a5637");
   rect(g, x, y, w, 3, "#94693f");
   rect(g, x, y + h - 3, w, 3, "#5d4128");
@@ -251,6 +335,7 @@ function desk(g, x, y, w, h, monitors) {
 
 function roundTable(g, cx, cy, r) {
   circle(g, cx + 2, cy + 3, r, "rgba(0,0,0,0.35)");
+  circle(g, cx, cy, r + 1, OUTLINE);
   circle(g, cx, cy, r, "#7a5637");
   circle(g, cx, cy, r - 3, "#94693f");
   circle(g, cx, cy, r - 8, "#7a5637");
@@ -279,6 +364,7 @@ function cafeTable(g, cx, cy, r) {
 
 function tableLong(g, x, y, w, h) {
   rect(g, x + 2, y + h - 2, w, 4, "rgba(0,0,0,0.35)");
+  rect(g, x - 1, y - 1, w + 2, h + 2, OUTLINE);
   rect(g, x, y, w, h, "#3c4356");
   rect(g, x, y, w, 3, "#4d5670");
   rect(g, x, y + h - 3, w, 3, "#2b3142");
@@ -298,6 +384,7 @@ function tableLong(g, x, y, w, h) {
 
 function sofa(g, x, y, w, h, color) {
   rect(g, x + 2, y + h - 2, w, 4, "rgba(0,0,0,0.35)");
+  rect(g, x - 1, y - 1, w + 2, h + 2, OUTLINE);
   rect(g, x, y, w, h, color);
   rect(g, x, y, w, 4, shade(color, 22));
   rect(g, x, y + h - 3, w, 3, shade(color, -24));
@@ -309,6 +396,7 @@ function sofa(g, x, y, w, h, color) {
 
 function sofaVertical(g, x, y, w, h, color) {
   rect(g, x + 2, y + 2, w, h, "rgba(0,0,0,0.35)");
+  rect(g, x - 1, y - 1, w + 2, h + 2, OUTLINE);
   rect(g, x, y, w, h, color);
   rect(g, x, y, 4, h, shade(color, 22));
   rect(g, x + w - 3, y, 3, h, shade(color, -24));
@@ -317,6 +405,7 @@ function sofaVertical(g, x, y, w, h, color) {
 
 function bookshelf(g, x, y, w, h) {
   rect(g, x + 2, y + h, w, 3, "rgba(0,0,0,0.35)");
+  rect(g, x - 1, y - 1, w + 2, h + 2, OUTLINE);
   rect(g, x, y, w, h, "#3a2917");
   rect(g, x, y, w, 2, "#63482e");
   rect(g, x, y, 2, h, "#63482e");
@@ -337,6 +426,7 @@ function bookshelf(g, x, y, w, h) {
 // Balcao de cozinha com maquina de cafe (o vapor e animado pelo sceneFx).
 function kitchen(g, x, y, w, h) {
   rect(g, x + 2, y + h - 1, w, 3, "rgba(0,0,0,0.35)");
+  rect(g, x - 1, y - 1, w + 2, h + 2, OUTLINE);
   rect(g, x, y, w, h, "#8d9199");
   rect(g, x, y, w, 3, "#b8bcc4");
   rect(g, x, y + h - 3, w, 3, "#6a6e78");
@@ -361,6 +451,7 @@ export function kitchenSteamPoint(item) {
 
 function serverRack(g, x, y, w, h) {
   rect(g, x + 2, y + h - 1, w, 3, "rgba(0,0,0,0.35)");
+  rect(g, x - 1, y - 1, w + 2, h + 2, OUTLINE);
   rect(g, x, y, w, h, "#1c212e");
   rect(g, x, y, w, 2, "#2e3547");
   rect(g, x, y, 2, h, "#2e3547");
@@ -416,6 +507,7 @@ function screenWall(g, x, y, w, h) {
 
 function arcade(g, x, y, w, h) {
   rect(g, x + 1, y + h - 1, w, 3, "rgba(0,0,0,0.4)");
+  rect(g, x - 1, y - 1, w + 2, h + 2, OUTLINE);
   rect(g, x, y, w, h, "#3b2d5e");
   rect(g, x, y, w, 2, "#54418a");
   // tela (sceneFx cicla as cores)
@@ -438,6 +530,7 @@ export function arcadeScreen(item) {
 
 function vending(g, x, y, w, h) {
   rect(g, x + 1, y + h - 1, w, 3, "rgba(0,0,0,0.4)");
+  rect(g, x - 1, y - 1, w + 2, h + 2, OUTLINE);
   rect(g, x, y, w, h, "#1d4ed8");
   rect(g, x, y, w, 2, "#3b82f6");
   // vitrine com produtos
@@ -453,6 +546,7 @@ function vending(g, x, y, w, h) {
 
 function pingpong(g, x, y, w, h) {
   rect(g, x + 2, y + h - 1, w, 4, "rgba(0,0,0,0.35)");
+  rect(g, x - 1, y - 1, w + 2, h + 2, OUTLINE);
   rect(g, x, y, w, h, "#1d7a4f");
   rect(g, x, y, w, 2, "#2ba36b");
   rect(g, x, y + h - 2, w, 2, "#155c3b");

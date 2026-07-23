@@ -1,5 +1,8 @@
 // Agenda compartilhada do espaco: calendario mensal com eventos visiveis
-// para todos. Qualquer um cria eventos; so o autor remove os seus.
+// para todos. Reunioes podem ter uma sala do mapa; o botao "ir" caminha ate la.
+// Qualquer um cria eventos; so o autor remove os seus.
+
+import { activeMap, channelLabel } from "../core/mapGeometry.js";
 
 const MONTHS = [
   "Janeiro", "Fevereiro", "Marco", "Abril", "Maio", "Junho",
@@ -10,6 +13,7 @@ const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
 let socketRef = null;
 let els = null;
 let selfIdRef = () => null;
+let goToRoom = null; // callback: caminhar ate a sala da reuniao
 let events = []; // todos os eventos do espaco
 let viewYear = 0;
 let viewMonth = 0; // 0-11
@@ -24,10 +28,11 @@ function dateKey(year, month, day) {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-export function initCalendar({ socket, elements, getSelfId }) {
+export function initCalendar({ socket, elements, getSelfId, onGoToRoom }) {
   socketRef = socket;
   els = elements;
   selfIdRef = getSelfId;
+  goToRoom = onGoToRoom;
 
   const now = new Date();
   viewYear = now.getFullYear();
@@ -43,10 +48,12 @@ export function initCalendar({ socket, elements, getSelfId }) {
     socketRef.emit("event:add", {
       date: selectedDate,
       time: els.calTime.value || "",
+      room: els.calRoom.value || "",
       title
     });
     els.calTitle.value = "";
     els.calTime.value = "";
+    els.calRoom.value = "";
   });
 
   socket.on("space:ready", ({ events: initial = [] }) => {
@@ -85,8 +92,32 @@ function eventsOf(date) {
     .sort((a, b) => (a.time || "99") < (b.time || "99") ? -1 : 1);
 }
 
+// Preenche o select de sala com as salas do mapa ativo (reunioes).
+export function refreshCalendarRooms() {
+  if (!els) return;
+  const map = activeMap();
+  const current = els.calRoom.value;
+  els.calRoom.innerHTML = "";
+
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = "Sem sala";
+  els.calRoom.append(none);
+
+  for (const room of [...map.rooms, map.lounge]) {
+    const option = document.createElement("option");
+    option.value = room.id;
+    option.textContent = room.label;
+    els.calRoom.append(option);
+  }
+  if ([...els.calRoom.options].some((option) => option.value === current)) {
+    els.calRoom.value = current;
+  }
+}
+
 export function renderCalendar() {
   if (!els) return;
+  refreshCalendarRooms();
 
   els.calMonthLabel.textContent = `${MONTHS[viewMonth]} ${viewYear}`;
 
@@ -148,10 +179,23 @@ export function renderCalendar() {
     const title = document.createElement("strong");
     title.textContent = event.title;
     const author = document.createElement("small");
-    author.textContent = event.name;
+    author.textContent = event.room
+      ? `${event.name} · 📍 ${channelLabel(event.room)}`
+      : event.name;
     body.append(title, author);
 
     row.append(time, body);
+
+    // reuniao com sala: botao para caminhar ate la
+    if (event.room) {
+      const go = document.createElement("button");
+      go.type = "button";
+      go.className = "cal-go";
+      go.textContent = "ir";
+      go.title = `Caminhar ate ${channelLabel(event.room)}`;
+      go.addEventListener("click", () => goToRoom?.(event.room));
+      row.append(go);
+    }
 
     if (event.userId === selfIdRef()) {
       const remove = document.createElement("button");

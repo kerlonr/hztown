@@ -11,6 +11,13 @@ const ALLOWED_CHANNELS = new Set(["lounge", "team", "daily", "focus", "meet", "d
 const ALLOWED_REACTIONS = new Set(["👋", "❤️", "😂", "🎉", "👍", "🔥"]);
 const ALLOWED_NOTE_COLORS = new Set(["yellow", "pink", "green", "blue", "violet"]);
 const ALLOWED_DESK_DECORS = new Set(["", "🌵", "☕", "📚", "🏆", "🎧", "🐈"]);
+// Moveis que os usuarios podem colocar no modo construir.
+const ALLOWED_PROP_KINDS = new Set([
+  "desk", "plant", "sofa", "rug", "bookshelf", "arcade", "cafe-table", "pingpong"
+]);
+const PROP_LIMIT = 80; // moveis colocados por espaco
+const TASK_LIMIT = 100; // tarefas por espaco
+const ALLOWED_TASK_STATUS = new Set(["todo", "doing", "done"]);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;
 
@@ -21,11 +28,18 @@ const RATE_LIMITS = {
   "reaction:send": { tokens: 8, intervalMs: 2000 },
   "note:add": { tokens: 4, intervalMs: 5000 },
   "note:remove": { tokens: 10, intervalMs: 5000 },
+  "note:move": { tokens: 20, intervalMs: 5000 },
   "event:add": { tokens: 5, intervalMs: 10000 },
   "event:remove": { tokens: 10, intervalMs: 10000 },
   "desk:update": { tokens: 10, intervalMs: 5000 },
   "desk:note": { tokens: 5, intervalMs: 10000 },
-  "room:lock": { tokens: 5, intervalMs: 5000 }
+  "room:lock": { tokens: 5, intervalMs: 5000 },
+  "prop:add": { tokens: 6, intervalMs: 5000 },
+  "prop:move": { tokens: 20, intervalMs: 5000 },
+  "prop:remove": { tokens: 10, intervalMs: 5000 },
+  "task:add": { tokens: 6, intervalMs: 10000 },
+  "task:update": { tokens: 15, intervalMs: 10000 },
+  "task:remove": { tokens: 10, intervalMs: 10000 }
 };
 
 // Identificador curto de mesa (ex.: "team-a") vindo do cliente.
@@ -86,7 +100,9 @@ export function registerSocketHandlers(io, store) {
         notes: store.getNotes(currentSpaceId),
         events: store.getEvents(currentSpaceId),
         desks: Array.from(store.getDesks(currentSpaceId).values()).map(publicDesk),
-        roomLocks: Array.from(store.getRoomLocks(currentSpaceId).values())
+        roomLocks: Array.from(store.getRoomLocks(currentSpaceId).values()),
+        props: store.getProps(currentSpaceId),
+        tasks: store.getTasks(currentSpaceId)
       });
       socket.to(currentSpaceId).emit("presence:joined", publicUser(user));
     });
@@ -184,7 +200,115 @@ export function registerSocketHandlers(io, store) {
       io.to(currentSpaceId).emit("note:removed", payload.id);
     });
 
-    // --- Agenda compartilhada do espaco ---
+    // Post-it pode ser movido pelo autor depois de colado.
+    socket.on("note:move", (payload) => {
+      if (!currentSpaceId || !allow("note:move")) return;
+
+      const note = store.getNotes(currentSpaceId).find((n) => n.id === payload?.id);
+      if (!note || note.userId !== socket.id) return;
+
+      note.x = clampCoord(payload?.x, note.x);
+      note.y = clampCoord(payload?.y, note.y);
+      socket.to(currentSpaceId).emit("note:moved", { id: note.id, x: note.x, y: note.y });
+    });
+
+    // --- Modo construir: moveis colocados pelos usuarios ---
+    socket.on("prop:add", (payload) => {
+      if (!currentSpaceId || !allow("prop:add")) return;
+
+      const user = store.getSpace(currentSpaceId).get(socket.id);
+      if (!user || !ALLOWED_PROP_KINDS.has(payload?.kind)) return;
+
+      const props = store.getProps(currentSpaceId);
+      if (props.length >= PROP_LIMIT) return;
+
+      const prop = {
+        id: randomUUID(),
+        userId: socket.id,
+        owner: user.name,
+        kind: payload.kind,
+        x: clampCoord(payload?.x, 50),
+        y: clampCoord(payload?.y, 50),
+        createdAt: Date.now()
+      };
+      props.push(prop);
+      io.to(currentSpaceId).emit("prop:added", prop);
+    });
+
+    socket.on("prop:move", (payload) => {
+      if (!currentSpaceId || !allow("prop:move")) return;
+
+      const user = store.getSpace(currentSpaceId).get(socket.id);
+      const prop = store.getProps(currentSpaceId).find((p) => p.id === payload?.id);
+      // o criador (pelo nome, para sobreviver a reconexao) move e remove
+      if (!user || !prop || prop.owner !== user.name) return;
+
+      prop.x = clampCoord(payload?.x, prop.x);
+      prop.y = clampCoord(payload?.y, prop.y);
+      socket.to(currentSpaceId).emit("prop:moved", { id: prop.id, x: prop.x, y: prop.y });
+    });
+
+    socket.on("prop:remove", (payload) => {
+      if (!currentSpaceId || !allow("prop:remove")) return;
+
+      const user = store.getSpace(currentSpaceId).get(socket.id);
+      const props = store.getProps(currentSpaceId);
+      const index = props.findIndex((p) => p.id === payload?.id);
+      if (!user || index === -1 || props[index].owner !== user.name) return;
+
+      props.splice(index, 1);
+      io.to(currentSpaceId).emit("prop:removed", payload.id);
+    });
+
+    // --- Quadro de tarefas (kanban estilo Monday) ---
+    socket.on("task:add", (payload) => {
+      if (!currentSpaceId || !allow("task:add")) return;
+
+      const user = store.getSpace(currentSpaceId).get(socket.id);
+      const title = sanitizeText(payload?.title, 90);
+      if (!user || !title) return;
+
+      const tasks = store.getTasks(currentSpaceId);
+      if (tasks.length >= TASK_LIMIT) return;
+
+      const task = {
+        id: randomUUID(),
+        userId: socket.id,
+        name: user.name,
+        title,
+        assignee: sanitizeText(payload?.assignee, 28),
+        status: "todo",
+        createdAt: Date.now()
+      };
+      tasks.push(task);
+      io.to(currentSpaceId).emit("task:added", task);
+    });
+
+    // Status e responsavel sao colaborativos (qualquer um atualiza).
+    socket.on("task:update", (payload) => {
+      if (!currentSpaceId || !allow("task:update")) return;
+
+      const task = store.getTasks(currentSpaceId).find((t) => t.id === payload?.id);
+      if (!task) return;
+
+      if (ALLOWED_TASK_STATUS.has(payload?.status)) task.status = payload.status;
+      if (typeof payload?.assignee === "string") task.assignee = sanitizeText(payload.assignee, 28);
+      io.to(currentSpaceId).emit("task:updated", task);
+    });
+
+    socket.on("task:remove", (payload) => {
+      if (!currentSpaceId || !allow("task:remove")) return;
+
+      const user = store.getSpace(currentSpaceId).get(socket.id);
+      const tasks = store.getTasks(currentSpaceId);
+      const index = tasks.findIndex((t) => t.id === payload?.id);
+      if (!user || index === -1 || tasks[index].name !== user.name) return;
+
+      tasks.splice(index, 1);
+      io.to(currentSpaceId).emit("task:removed", payload.id);
+    });
+
+    // --- Agenda compartilhada do espaco (reunioes podem ter sala) ---
     socket.on("event:add", (payload) => {
       if (!currentSpaceId || !allow("event:add")) return;
 
@@ -192,6 +316,7 @@ export function registerSocketHandlers(io, store) {
       const title = sanitizeText(payload?.title, 80);
       const date = String(payload?.date || "");
       const time = String(payload?.time || "");
+      const room = ALLOWED_CHANNELS.has(payload?.room) ? payload.room : "";
       if (!user || !title || !DATE_RE.test(date)) return;
 
       const events = store.getEvents(currentSpaceId);
@@ -203,6 +328,7 @@ export function registerSocketHandlers(io, store) {
         name: user.name,
         date,
         time: TIME_RE.test(time) ? time : "",
+        room,
         title,
         createdAt: Date.now()
       };

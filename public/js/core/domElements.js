@@ -36,8 +36,13 @@ export const els = {
   noteButton: document.querySelector("#noteButton"),
   dashButton: document.querySelector("#dashButton"),
   calButton: document.querySelector("#calButton"),
+  taskButton: document.querySelector("#taskButton"),
+  buildButton: document.querySelector("#buildButton"),
+  zoomInButton: document.querySelector("#zoomInButton"),
+  zoomOutButton: document.querySelector("#zoomOutButton"),
   reactButton: document.querySelector("#reactButton"),
   reactionBar: document.querySelector("#reactionBar"),
+  buildPalette: document.querySelector("#buildPalette"),
 
   // post-its
   noteComposer: document.querySelector("#noteComposer"),
@@ -66,15 +71,28 @@ export const els = {
   calEvents: document.querySelector("#calEvents"),
   calForm: document.querySelector("#calForm"),
   calTime: document.querySelector("#calTime"),
+  calRoom: document.querySelector("#calRoom"),
   calTitle: document.querySelector("#calTitle"),
+
+  // tarefas
+  taskWindow: document.querySelector("#taskWindow"),
+  taskForm: document.querySelector("#taskForm"),
+  taskTitle: document.querySelector("#taskTitle"),
+  taskAssignee: document.querySelector("#taskAssignee"),
+  taskColumns: document.querySelector("#taskColumns"),
 
   // mesas e popover do mapa
   deskMarkers: document.querySelector("#deskMarkers"),
   mapPopover: document.querySelector("#mapPopover"),
 
   // mapa
+  appShell: document.querySelector("#appShell"),
+  stage: document.querySelector("#stage"),
   floorPlan: document.querySelector("#floorPlan"),
   floorCanvas: document.querySelector("#floorCanvas"),
+  propsCanvas: document.querySelector("#propsCanvas"),
+  propMarkers: document.querySelector("#propMarkers"),
+  propHandles: document.querySelector("#propHandles"),
   fxCanvas: document.querySelector("#fxCanvas"),
   roomLabels: document.querySelector("#roomLabels"),
   avatarsLayer: document.querySelector("#avatarsLayer"),

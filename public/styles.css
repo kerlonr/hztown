@@ -309,17 +309,46 @@ small,
   position: relative;
   height: 100dvh;
   overflow: hidden;
+  /* Largura da barra de chat da direita. Vira 0 quando o chat esta fechado,
+     entao o palco e a toolbar voltam a ocupar a tela inteira. */
+  --chat-width: min(340px, 92vw);
+  --chat-gap: 0px;
   background:
     radial-gradient(120% 80% at 100% 0%, rgba(129, 140, 248, 0.08), transparent 50%),
     radial-gradient(120% 80% at 0% 100%, rgba(52, 211, 153, 0.05), transparent 45%),
     var(--bg);
 }
 
+.app-shell.chat-open {
+  --chat-gap: var(--chat-width);
+}
+
 .stage {
   display: grid;
   height: 100%;
   place-items: center;
-  padding: 10px 12px calc(var(--dock-height) + 20px);
+  padding: 10px calc(12px + var(--chat-gap)) calc(var(--dock-height) + 20px) 12px;
+  transition: padding 220ms var(--ease);
+}
+
+/* A toolbar (pilula central) acompanha o encolhimento do palco. */
+.toolbar {
+  transition: left 220ms var(--ease);
+}
+
+/* Com zoom, o palco vira uma viewport rolavel e a camera segue o avatar. */
+.stage.zoomed {
+  display: block;
+  overflow: auto;
+  scrollbar-width: none;
+}
+
+.stage.zoomed::-webkit-scrollbar {
+  display: none;
+}
+
+.stage.zoomed .floor-plan {
+  margin: 0 auto;
 }
 
 .floor-plan {
@@ -866,6 +895,12 @@ small,
   display: none;
 }
 
+/* Com o chat aberto, a pilula recentraliza na area livre do palco. */
+.app-shell.chat-open .toolbar {
+  left: calc((100% - var(--chat-gap)) / 2);
+  max-width: calc(100% - var(--chat-gap) - 16px);
+}
+
 .toolbar-group {
   display: flex;
   flex: none;
@@ -887,6 +922,104 @@ small,
   top: -4px;
   right: -4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+/* ----- Modo construir ----- */
+.floor-plan.building {
+  cursor: copy;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.4), var(--shadow-lg);
+}
+
+.build-palette {
+  position: absolute;
+  bottom: calc(var(--dock-height) + 26px);
+  left: 50%;
+  z-index: 28;
+  display: none;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: rgba(10, 12, 18, 0.92);
+  transform: translateX(-50%);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-lg);
+  max-width: calc(100vw - 24px);
+  overflow-x: auto;
+}
+
+.build-palette.open {
+  display: flex;
+  animation: window-in 140ms var(--ease);
+}
+
+.palette-item {
+  display: grid;
+  gap: 2px;
+  min-width: 64px;
+  justify-items: center;
+  padding: 8px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 10px;
+  transition: transform 120ms var(--ease), border-color 120ms var(--ease);
+}
+
+.palette-item:hover {
+  transform: translateY(-2px);
+}
+
+.palette-item.active {
+  border-color: var(--live);
+  color: var(--text);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18);
+}
+
+.palette-emoji {
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* Alcas de edicao dos seus moveis (visiveis so no modo construir). */
+.prop-handles {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.prop-handle {
+  position: absolute;
+  border: 1.5px dashed rgba(52, 211, 153, 0.8);
+  border-radius: 6px;
+  background: rgba(52, 211, 153, 0.08);
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.prop-handle.dragging {
+  cursor: grabbing;
+  background: rgba(52, 211, 153, 0.16);
+}
+
+.prop-remove {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #2b0707;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 /* ----- Plaquinhas de mesa e menu contextual do mapa ----- */
@@ -1414,11 +1547,43 @@ small,
   line-height: 1;
 }
 
-.chat-window {
-  top: 72px;
-  right: 16px;
-  width: min(340px, calc(100vw - 24px));
-  height: min(560px, calc(100dvh - var(--dock-height) - 96px));
+/* O display:grid acima venceria o [hidden] do navegador; sem isso o badge
+   aparece com "0" mesmo sem mensagens nao lidas. */
+.badge[hidden] {
+  display: none;
+}
+
+/* Chat ancorado como barra lateral direita: desliza para dentro/fora
+   (mesmo botao de abrir/fechar) e o palco encolhe para nao ficar coberto. */
+.chat-window.docked {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: auto;
+  z-index: 41;
+  display: grid;
+  width: var(--chat-width);
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  border-width: 0 0 0 1px;
+  border-radius: 0;
+  background: rgba(17, 19, 26, 0.96);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(102%);
+  transition: transform 220ms var(--ease);
+  resize: none;
+  animation: none;
+}
+
+.chat-window.docked.open {
+  transform: translateX(0);
+  animation: none;
+}
+
+.chat-window.docked .window-head {
+  cursor: default;
+  padding: 16px 10px 14px 20px;
 }
 
 .media-window {
@@ -1629,9 +1794,9 @@ small,
 
 .cal-event {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) auto;
+  grid-template-columns: 46px minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: var(--r-md);
@@ -1665,8 +1830,44 @@ small,
 
 .cal-form {
   display: grid;
-  grid-template-columns: 84px minmax(0, 1fr) 44px;
   gap: 6px;
+}
+
+.cal-form-row {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 6px;
+}
+
+.cal-form-row:last-child {
+  grid-template-columns: minmax(0, 1fr) 44px;
+}
+
+.cal-form select {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+
+.cal-go {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid rgba(52, 211, 153, 0.5);
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--live);
+  font-size: 11px;
+  font-weight: 700;
+  transition: background 120ms var(--ease);
+}
+
+.cal-go:hover {
+  background: rgba(52, 211, 153, 0.24);
 }
 
 .cal-form input {
@@ -1688,6 +1889,158 @@ small,
 .cal-form .primary-button {
   height: 40px;
   min-width: 44px;
+}
+
+/* Quadro de tarefas (kanban) */
+.task-window {
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, calc(100vw - 24px));
+  height: min(480px, calc(100dvh - var(--dock-height) - 96px));
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.task-window.dragging,
+.task-window[style*="left"] {
+  transform: none;
+}
+
+.task-body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  min-height: 0;
+  padding: 12px 14px 14px;
+}
+
+.task-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px 44px;
+  gap: 6px;
+}
+
+.task-form input,
+.task-form select {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+
+.task-form select {
+  background: var(--panel-2);
+}
+
+.task-form input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.task-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.task-column {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.task-column > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--line);
+}
+
+.task-column.task-todo > header { border-color: rgba(129, 140, 248, 0.5); }
+.task-column.task-doing > header { border-color: rgba(252, 211, 77, 0.5); }
+.task-column.task-done > header { border-color: rgba(52, 211, 153, 0.5); }
+
+.task-column > header strong {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.task-card {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel-2);
+}
+
+.task-card p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.task-column.task-done .task-card p {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.task-meta {
+  display: flex;
+}
+
+.task-assignee {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.task-assignee.none {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+}
+
+.task-controls {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.task-arrow {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 120ms var(--ease), color 120ms var(--ease);
+}
+
+.task-arrow:hover {
+  background: var(--panel-3);
+  color: var(--text);
 }
 
 /* ----- 8. Conteudo do chat ----- */
@@ -2356,6 +2709,23 @@ small,
     resize: none;
   }
 
+  /* No celular a barra do chat continua na direita, mas por cima do mapa. */
+  .app-shell.chat-open {
+    --chat-gap: 0px;
+  }
+
+  /* Para acima da toolbar para nao esconder os botoes no celular. */
+  .chat-window.docked {
+    top: 0 !important;
+    right: 0 !important;
+    bottom: calc(var(--dock-height) + 18px) !important;
+    left: auto !important;
+    width: min(320px, 88vw) !important;
+    height: auto;
+    border-bottom-left-radius: var(--r);
+    border-width: 0 0 1px 1px;
+  }
+
   /* Minimizada no celular: barrinha colada em cima, sem ocupar a tela. */
   .float-window.min {
     bottom: auto !important;
@@ -2368,6 +2738,18 @@ small,
 
   .size-picker {
     grid-template-columns: 1fr;
+  }
+
+  .task-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .task-form {
+    grid-template-columns: minmax(0, 1fr) 44px;
+  }
+
+  .task-form select {
+    grid-column: 1 / -1;
   }
 
   .size-card {
